@@ -1,12 +1,24 @@
 import os
+
+# Reduce TensorFlow's memory/thread overhead for low-RAM hosting
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['TF_NUM_INTRAOP_THREADS'] = '1'
+os.environ['TF_NUM_INTEROP_THREADS'] = '1'
+
+import gc
 import numpy as np
 import joblib
 import xgboost as xgb
 from flask import Flask, request, jsonify, render_template
+import tensorflow as tf
 from tensorflow.keras.applications.resnet50 import ResNet50, preprocess_input
 from tensorflow.keras.models import Model
 import io
 from PIL import Image
+
+tf.config.threading.set_intra_op_parallelism_threads(1)
+tf.config.threading.set_inter_op_parallelism_threads(1)
 
 app = Flask(__name__)
 
@@ -130,8 +142,11 @@ def predict():
     'prob_dirty'    : round(probs[2] * 100, 1)
 })
 
-    except Exception as e:
+except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+    finally:
+        gc.collect()
 
 
 if __name__ == '__main__':
