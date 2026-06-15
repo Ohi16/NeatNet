@@ -1,0 +1,1624 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>NeatNet — Road Cleanliness Scanner</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=Libre+Baskerville:ital@0;1&display=swap" rel="stylesheet"/>
+<style>
+
+/* ═══════ LIGHT MODE TOKENS ═══════ */
+:root {
+  /* Light palette: soft blush, old rose, pale slate, cool steel, taupe grey */
+  --bg:         #F7F0EC;       /* soft blush-ivory */
+  --bg2:        #EFE6E0;       /* slightly deeper blush */
+  --surface:    #FFFFFF;
+  --surface2:   #F2EBE6;
+  --rose:       #A0584A;       /* old rose */
+  --rose-light: #C47B6E;
+  --rose-pale:  #E8CFC8;       /* pale blush accent fill */
+  --slate:      #8899A8;       /* pale slate */
+  --steel:      #5C7282;       /* cool steel */
+  --taupe:      #8C8278;       /* taupe grey */
+  --text-1:     #2A2220;
+  --text-2:     #5C5250;
+  --text-3:     #66534a;
+  --border:     rgba(160,88,74,0.12);
+  --border-m:   rgba(160,88,74,0.22);
+  --accent:     var(--rose);
+  --accent-bg:  rgba(160,88,74,0.08);
+  --score-clean:   #4A7C59;
+  --score-mod:     #A07840;
+  --score-dirty:   #A0584A;
+
+  --serif:  'Cormorant Garamond', Georgia, serif;
+  --body:   'DM Sans', system-ui, sans-serif;
+  --ease-silk: cubic-bezier(0.25,0.46,0.45,0.94);
+  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+}
+
+/* ═══════ DARK MODE TOKENS ═══════ */
+[data-theme="dark"] {
+  --bg:         #021334;       /* deep navy */
+  --bg2:        #012A61;       /* mid navy */
+  --surface:    #012A61;
+  --surface2:   #275A91;
+  --rose:       #FDC787;       /* warm amber-gold */
+  --rose-light: #FDD4A0;
+  --rose-pale:  rgba(253,199,135,0.12);
+  --slate:      #A5C5CC;       /* light teal */
+  --steel:      #275A91;       /* medium navy */
+  --taupe:      #977086;       /* mauve */
+  --text-1:     #E8F0F8;
+  --text-2:     #A5C5CC;
+  --text-3:     #d6ced3;
+  --border:     rgba(165,197,204,0.12);
+  --border-m:   rgba(253,199,135,0.22);
+  --accent:     #FDC787;
+  --accent-bg:  rgba(253,199,135,0.08);
+  --score-clean:   #A5C5CC;
+  --score-mod:     #FDC787;
+  --score-dirty:   #977086;
+}
+
+/* ═══════ RESET ═══════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;font-size:18px}
+body{
+  font-family: var(--body);
+  background: var(--bg);
+  color: var(--text-1);
+  overflow-x: hidden;
+  transition: background 0.6s ease, color 0.5s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:var(--rose-pale);border-radius:2px}
+
+/* ═══════ SUBTLE TEXTURE ═══════ */
+body::before {
+  content:'';
+  position:fixed;inset:0;
+  pointer-events:none;z-index:0;
+  background-image: radial-gradient(ellipse at 20% 0%, rgba(160,88,74,0.06) 0%, transparent 50%),
+                    radial-gradient(ellipse at 80% 100%, rgba(140,130,120,0.05) 0%, transparent 50%);
+  transition: opacity 0.6s;
+}
+[data-theme="dark"] body::before {
+  background-image: radial-gradient(ellipse at 20% 0%, rgba(39,90,145,0.35) 0%, transparent 55%),
+                    radial-gradient(ellipse at 80% 80%, rgba(151,112,134,0.2) 0%, transparent 50%),
+                    radial-gradient(ellipse at 60% 30%, rgba(1,42,97,0.5) 0%, transparent 60%);
+}
+
+/* ═══════ NAV ═══════ */
+nav {
+  position: fixed;top:0;left:0;right:0;
+  z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 48px;
+  height:64px;
+  background: rgba(247,240,236,0.85);
+  backdrop-filter: blur(16px);
+  border-bottom:1px solid var(--border);
+  transition: background 0.6s, border-color 0.5s;
+}
+[data-theme="dark"] nav {
+  background: rgba(2,19,52,0.85);
+}
+.nav-logo {
+  display:flex;align-items:center;gap:14px;
+  text-decoration:none;
+}
+.nav-logo-mark {
+  /* SVG leaf + NN inline in nav */
+  display:flex;align-items:center;
+}
+.nav-logo-mark svg {
+  height:36px;width:auto;
+}
+/* Single adaptive logo — color shifts per theme via CSS vars */
+.nn-logo { display:block; }
+.nn-logo .logo-bg    { display:none; }           /* hide white rect */
+.nn-logo .logo-body  { fill: var(--text-1); }    /* dark shape in light, light in dark */
+.nn-logo .logo-nn    { fill: var(--accent); }    /* NN letters = accent color */
+.nn-logo .logo-grad1 { fill: var(--accent); opacity:0.55; }
+.nn-logo .logo-grad2 { fill: var(--accent); opacity:0.35; }
+.nn-logo .logo-leaf  { fill: var(--rose-light); opacity:0.6; }
+
+.nav-wordmark {
+  font-family: var(--serif);
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--text-1);
+  transition: color 0.5s;
+}
+.nav-links { display:flex;align-items:center;gap:0 }
+.nav-link {
+  font-family: var(--body);
+  font-size: 0.92rem;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: var(--text-2);
+  text-decoration: none;
+  padding: 0 22px;
+  height: 64px;
+  display: flex;align-items:center;
+  transition: color 0.2s;
+  position: relative;
+}
+.nav-link::after {
+  content:'';
+  position:absolute;bottom:0;left:22px;right:22px;
+  height:1px;background:var(--accent);
+  transform:scaleX(0);transform-origin:center;
+  transition:transform 0.3s var(--ease-silk);
+}
+.nav-link:hover { color:var(--accent) }
+.nav-link:hover::after { transform:scaleX(1) }
+.nav-cta {
+  height:38px;
+  padding:0 24px;
+  display:flex;align-items:center;
+  font-family:var(--body);
+  font-size:0.78rem;font-weight:500;
+  letter-spacing:0.04em;
+  color: var(--bg);
+  background: var(--accent);
+  text-decoration:none;
+  border-radius:100px;
+  margin-left:12px;
+  transition: opacity 0.2s, transform 0.2s var(--ease-spring);
+}
+[data-theme="light"] .nav-cta { color: #fff }
+.nav-cta:hover { opacity:0.9;transform:translateY(-1px) }
+.theme-toggle {
+  height:38px;width:38px;margin-left:10px;
+  display:flex;align-items:center;justify-content:center;
+  background:none;border:1px solid var(--border-m);border-radius:50%;
+  color:var(--text-2);font-size:1rem;cursor:pointer;
+  transition:color 0.2s, border-color 0.2s, background 0.2s;
+}
+.theme-toggle:hover { color:var(--accent);border-color:var(--accent);background:var(--accent-bg) }
+
+/* ═══════ TICKER ═══════ */
+.ticker {
+  position:fixed;bottom:0;left:0;right:0;z-index:100;
+  height:30px;
+  background: var(--surface);
+  border-top:1px solid var(--border);
+  overflow:hidden;display:flex;align-items:center;
+  transition: background 0.6s;
+}
+.ticker-inner {
+  display:flex;align-items:center;gap:0;
+  white-space:nowrap;
+  animation:ticker-scroll 32s linear infinite;
+}
+.ticker-inner:hover { animation-play-state:paused }
+@keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.tick-item {
+  font-family:var(--body);
+  font-size:0.6rem;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  padding:0 24px;
+  color:var(--text-3);
+  border-right:1px solid var(--border);
+}
+.tick-accent{color:var(--accent)}
+.tick-warn{color:var(--score-mod)}
+.tick-danger{color:var(--score-dirty)}
+
+/* ═══════ SPLASH ═══════ */
+#splash {
+  position:fixed;inset:0;z-index:200;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background: var(--bg);
+  transition: opacity 0.9s var(--ease-silk), transform 0.9s var(--ease-silk);
+  overflow:hidden;
+}
+#splash.hide { opacity:0;transform:scale(1.03);pointer-events:none }
+
+/* Organic leaf decorations behind splash */
+.splash-deco {
+  position:absolute;inset:0;pointer-events:none;
+}
+.splash-deco svg {
+  position:absolute;
+  opacity:0.18;
+}
+[data-theme="dark"] .splash-deco svg { opacity:0.1 }
+.splash-deco .sd-tl { top:-60px;left:-40px;width:340px;transform:rotate(-20deg) }
+.splash-deco .sd-br { bottom:-60px;right:-30px;width:280px;transform:rotate(160deg) }
+
+.splash-logo-wrap {
+  margin-bottom:36px;
+  animation:splash-rise 0.9s 0.2s var(--ease-silk) both;
+}
+.splash-logo-wrap svg { width:120px;height:120px }
+
+.splash-brand {
+  font-family: var(--serif);
+  font-size:2.8rem;font-weight:600;
+  letter-spacing:0.06em;
+  color: var(--text-1);
+  margin-bottom:8px;
+  animation:splash-rise 0.8s 0.4s var(--ease-silk) both;
+}
+.splash-sub {
+  font-family:var(--body);
+  font-size:0.72rem;
+  letter-spacing:0.18em;text-transform:uppercase;
+  color:var(--accent);
+  margin-bottom:44px;
+  animation:splash-rise 0.8s 0.55s var(--ease-silk) both;
+}
+.splash-enter {
+  font-family:var(--body);
+  font-size:0.78rem;font-weight:500;
+  letter-spacing:0.1em;
+  color: var(--bg);
+  background: var(--accent);
+  border:none;
+  padding:14px 44px;
+  border-radius:100px;
+  cursor:pointer;
+  transition:opacity 0.2s, transform 0.2s var(--ease-spring);
+  animation:splash-rise 0.8s 0.7s var(--ease-silk) both;
+}
+[data-theme="light"] .splash-enter { color:#fff }
+.splash-enter:hover { opacity:0.9;transform:translateY(-2px) }
+.splash-bar {
+  position:absolute;bottom:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--rose-pale),var(--accent),var(--rose-pale));
+  transform-origin:left;
+  animation:bar-fill 3s var(--ease-silk) forwards;
+}
+@keyframes bar-fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes splash-rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+
+/* ═══════ HERO ═══════ */
+#hero {
+  min-height:100vh;
+  padding-top:64px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  position:relative;
+  overflow:hidden;
+}
+.hero-left {
+  display:flex;flex-direction:column;justify-content:center;
+  padding:80px 64px 100px;
+  position:relative;z-index:1;
+}
+.hero-right {
+  display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;
+  background: linear-gradient(135deg, var(--bg2) 0%, var(--bg) 100%);
+}
+[data-theme="dark"] .hero-right {
+  background: linear-gradient(135deg, rgba(1,42,97,0.6) 0%, rgba(2,19,52,0.3) 100%);
+}
+
+/* Organic blob behind hero right */
+.hero-blob {
+  position:absolute;
+  width:500px;height:500px;
+  border-radius:60% 40% 55% 45% / 50% 60% 40% 50%;
+  background: radial-gradient(ellipse, var(--rose-pale) 0%, transparent 70%);
+  animation: blob-morph 12s ease-in-out infinite;
+}
+[data-theme="dark"] .hero-blob {
+  background: radial-gradient(ellipse, rgba(39,90,145,0.4) 0%, transparent 70%);
+}
+@keyframes blob-morph {
+  0%,100%{border-radius:60% 40% 55% 45% / 50% 60% 40% 50%;transform:scale(1) rotate(0deg)}
+  33%{border-radius:45% 55% 40% 60% / 60% 45% 55% 40%;transform:scale(1.04) rotate(3deg)}
+  66%{border-radius:55% 45% 60% 40% / 40% 55% 45% 60%;transform:scale(0.97) rotate(-2deg)}
+}
+
+.hero-eyebrow {
+  font-family:var(--body);
+  font-size:0.7rem;font-weight:500;
+  letter-spacing:0.18em;text-transform:uppercase;
+  color:var(--accent);
+  margin-bottom:24px;
+  display:flex;align-items:center;gap:10px;
+  animation:splash-rise 0.7s 0.1s var(--ease-silk) both;
+}
+/*.eyebrow-line {
+  width:28px;height:1px;background:var(--accent);
+  flex-shrink:0;
+}*/
+.hero-h1 {
+  font-family:var(--serif);
+  font-size:clamp(3.2rem,5.5vw,5.8rem);
+  font-weight:300;
+  line-height:1.05;
+  letter-spacing:-0.01em;
+  color:var(--text-1);
+  margin-bottom:28px;
+  animation:splash-rise 0.8s 0.2s var(--ease-silk) both;
+}
+.hero-h1 em {
+  font-style:italic;
+  color:var(--accent);
+}
+.hero-h1 .block { display:block }
+
+.hero-body {
+  font-size:1.08rem;
+  line-height:1.85;
+  color:var(--text-2);
+  max-width:380px;
+  margin-bottom:44px;
+  animation:splash-rise 0.8s 0.3s var(--ease-silk) both;
+}
+.hero-actions {
+  display:flex;align-items:center;gap:16px;
+  animation:splash-rise 0.8s 0.4s var(--ease-silk) both;
+}
+.btn-primary {
+  font-family:var(--body);
+  font-size:0.82rem;font-weight:500;
+  letter-spacing:0.04em;
+  color:#fff;
+  background:var(--accent);
+  border:none;
+  padding:14px 36px;
+  border-radius:100px;
+  cursor:pointer;
+  text-decoration:none;
+  display:inline-flex;align-items:center;gap:10px;
+  transition:opacity 0.2s, transform 0.22s var(--ease-spring), box-shadow 0.2s;
+  box-shadow: 0 4px 20px rgba(160,88,74,0.25);
+}
+[data-theme="light"] .btn-primary { color:#fff }
+[data-theme="dark"] .btn-primary { color:var(--bg);box-shadow:0 4px 20px rgba(253,199,135,0.2) }
+.btn-primary:hover { opacity:0.92;transform:translateY(-2px);box-shadow:0 8px 28px rgba(160,88,74,0.3) }
+[data-theme="dark"] .btn-primary:hover { box-shadow:0 8px 28px rgba(253,199,135,0.28) }
+.btn-ghost {
+  font-family:var(--body);
+  font-size:0.82rem;font-weight:400;
+  letter-spacing:0.04em;
+  color:var(--text-2);
+  background:none;
+  border:1px solid var(--border-m);
+  padding:13px 28px;
+  border-radius:100px;
+  cursor:pointer;
+  text-decoration:none;
+  display:inline-flex;align-items:center;gap:8px;
+  transition:border-color 0.2s, color 0.2s, background 0.2s;
+}
+.btn-ghost:hover { border-color:var(--accent);color:var(--accent);background:var(--accent-bg) }
+
+/* Hero visual — illustrated organic scanner */
+.hero-visual {
+  position:relative;
+  width:380px;height:380px;
+  z-index:1;
+}
+.hero-visual svg { width:100%;height:100% }
+
+/* Float rings */
+.hv-ring1 { animation: hv-float-1 8s ease-in-out infinite }
+.hv-ring2 { animation: hv-float-2 12s ease-in-out infinite }
+.hv-petals { animation: hv-rotate 30s linear infinite; transform-origin:190px 190px }
+.hv-inner-pulse { animation: hv-pulse 3.5s ease-in-out infinite }
+@keyframes hv-float-1{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes hv-float-2{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+@keyframes hv-rotate{to{transform:rotate(360deg)}}
+@keyframes hv-pulse{0%,100%{opacity:0.6;transform:scale(0.95)}50%{opacity:1;transform:scale(1.05)}}
+
+/* Score readout cards floating around visual */
+.hero-card {
+  position:absolute;
+  background:var(--surface);
+  border:1px solid var(--border-m);
+  border-radius:16px;
+  padding:14px 18px;
+  font-family:var(--body);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.06);
+  backdrop-filter:blur(8px);
+  transition:background 0.6s,border-color 0.5s;
+}
+.hc-label { font-size:0.58rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-3);margin-bottom:4px }
+.hc-value { font-family:var(--serif);font-size:1.6rem;font-weight:600;color:var(--accent) }
+.hc-sub { font-size:0.6rem;color:var(--text-3);margin-top:2px }
+.hero-card-1 { bottom:40px;left:-20px;animation:rb-float 6s ease-in-out infinite }
+.hero-card-2 { top:30px;right:-20px;animation:rb-float 8s ease-in-out infinite reverse }
+@keyframes rb-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+
+/* ═══════ STATUS BAR ═══════ */
+.status-bar {
+  background:var(--surface);
+  border-top:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+  display:flex;
+  position:relative;z-index:1;
+  transition:background 0.6s;
+}
+.stat-cell {
+  flex:1;padding:22px 32px;
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;gap:5px;
+}
+.stat-cell:last-child{border-right:none}
+.stat-label { font-size:0.64rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-3) }
+.stat-val {
+  font-family:var(--serif);
+  font-size:1.7rem;font-weight:400;
+  color:var(--text-1);
+  transition:color 0.5s;
+}
+.stat-val.green{color:var(--score-clean)}
+.stat-val.amber{color:var(--score-mod)}
+.stat-val.red{color:var(--score-dirty)}
+.stat-delta { font-size:0.62rem;color:var(--text-3) }
+
+/* ═══════ SECTION BASE ═══════ */
+.section-eyebrow {
+  display:inline-flex;align-items:center;gap:10px;
+  font-family:var(--body);
+  font-size:0.68rem;font-weight:500;
+  letter-spacing:0.15em;text-transform:uppercase;
+  color:var(--accent);
+  margin-bottom:20px;
+}
+/*.section-eyebrow::before {
+  content:'';width:20px;height:1px;background:var(--accent);flex-shrink:0;
+}*/
+
+/* ═══════ ABOUT ═══════ */
+#about {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  border-top:1px solid var(--border);
+}
+.about-left {
+  padding:88px 64px;
+  border-right:1px solid var(--border);
+}
+.about-right { padding:88px 64px }
+
+.about-pull {
+  font-family:var(--serif);
+  font-size:clamp(2rem,3.2vw,2.9rem);
+  font-weight:300;
+  line-height:1.15;
+  letter-spacing:-0.01em;
+  color:var(--text-1);
+  margin-bottom:28px;
+}
+.about-pull em { font-style:italic;color:var(--accent) }
+
+ .about-body {
+  font-size:1.05rem;line-height:2;
+  color:var(--text-2);
+  margin-bottom:36px;
+}
+
+.data-pill {
+  display:inline-flex;align-items:center;gap:8px;
+  background:var(--accent-bg);
+  border:1px solid var(--border-m);
+  padding:8px 18px;
+  border-radius:100px;
+  font-family:var(--body);
+  font-size:0.66rem;
+  letter-spacing:0.1em;text-transform:uppercase;
+  color:var(--accent);
+}
+.data-pill::before{content:'●';font-size:0.5rem}
+
+/* Bar chart panel */
+.chart-panel {
+  margin-top:40px;
+  background:var(--surface2);
+  border-radius:20px;
+  padding:28px 32px;
+  border:1px solid var(--border);
+  transition:background 0.6s;
+}
+.chart-title {
+  font-size:0.62rem;letter-spacing:0.12em;text-transform:uppercase;
+  color:var(--text-3);margin-bottom:22px;
+}
+.chart-row { display:flex;align-items:center;gap:14px;margin-bottom:14px }
+.chart-row:last-child{margin-bottom:0}
+.chart-name { font-size:0.7rem;color:var(--text-2);min-width:76px }
+.chart-track { flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden }
+.chart-fill { height:100%;border-radius:4px;transition:width 1.6s var(--ease-silk) }
+.cf-clean   { background:var(--score-clean) }
+.cf-mod     { background:var(--score-mod) }
+.cf-dirty   { background:var(--score-dirty) }
+.chart-pct  { font-family:var(--serif);font-size:0.9rem;font-weight:600;min-width:36px;text-align:right }
+.cpct-clean { color:var(--score-clean) }
+.cpct-mod   { color:var(--score-mod) }
+.cpct-dirty { color:var(--score-dirty) }
+
+/* Feature list */
+.feat-list { display:flex;flex-direction:column;gap:0 }
+.feat-item {
+  padding:26px 0;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:flex-start;gap:18px;
+  cursor:default;
+}
+.feat-item:first-child { border-top:1px solid var(--border) }
+.feat-icon {
+  width:40px;height:40px;border-radius:12px;
+  background:var(--accent-bg);
+  border:1px solid var(--border-m);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.1rem;flex-shrink:0;
+  transition:background 0.2s, border-color 0.2s;
+}
+.feat-item:hover .feat-icon { background:var(--accent);border-color:var(--accent) }
+.feat-content h4 {
+  font-family:var(--body);
+  font-size:0.9rem;font-weight:500;
+  margin-bottom:5px;
+  color:var(--text-1);
+}
+ .feat-content p { font-size:0.95rem;line-height:1.85;color:var(--text-2) }
+
+/* ═══════ GUIDE ═══════ */
+#guide { border-top:1px solid var(--border) }
+.guide-header {
+  padding:64px 64px 0;
+  display:flex;align-items:flex-end;justify-content:space-between;
+  padding-bottom:48px;
+  border-bottom:1px solid var(--border);
+}
+.guide-h2 {
+  font-family:var(--serif);
+  font-size:clamp(1.9rem,3vw,2.8rem);
+  font-weight:300;
+  line-height:1.1;
+  letter-spacing:-0.01em;
+  color:var(--text-1);
+  margin-top:12px;
+}
+ .guide-meta {
+  font-size:0.95rem;color:var(--text-3);line-height:1.9;
+  text-align:right;max-width:200px;
+}
+
+.guide-steps-grid { display:grid;grid-template-columns:repeat(3,1fr) }
+.guide-step {
+  padding:52px 44px;
+  border-right:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+  position:relative;
+  transition:background 0.3s;
+  overflow:hidden;
+}
+.guide-step:last-child{border-right:none}
+.guide-step::after {
+  content:'';
+  position:absolute;bottom:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+  transform:scaleX(0);transform-origin:center;
+  transition:transform 0.4s var(--ease-silk);
+}
+.guide-step:hover::after { transform:scaleX(1) }
+.guide-step:hover { background:var(--accent-bg) }
+
+.gs-num {
+  font-family:var(--serif);
+  font-size:5rem;font-weight:300;
+  line-height:1;
+  color:var(--border-m);
+  margin-bottom:16px;
+  transition:color 0.3s;
+}
+.guide-step:hover .gs-num { color:var(--accent);opacity:0.4 }
+.gs-icon { font-size:1.8rem;display:block;margin-bottom:16px }
+.gs-title {
+  font-family:var(--body);
+  font-size:1rem;font-weight:500;
+  margin-bottom:12px;color:var(--text-1);
+}
+ .gs-body { font-size:0.95rem;line-height:1.85;color:var(--text-2) }
+.gs-pill {
+  display:inline-block;margin-top:18px;
+  font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;
+  padding:5px 14px;
+  border-radius:100px;
+  border:1px solid var(--border-m);
+  color:var(--text-3);
+}
+
+.score-matrix { display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--border) }
+.score-cell {
+  padding:32px 44px;
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;gap:8px;
+  position:relative;overflow:hidden;
+}
+.score-cell:last-child{border-right:none}
+.score-cell::before {
+  content:'';
+  position:absolute;top:0;left:0;right:0;height:3px;
+  border-radius:0 0 2px 2px;
+}
+.sc-clean::before { background:var(--score-clean) }
+.sc-mod::before   { background:var(--score-mod) }
+.sc-dirty::before { background:var(--score-dirty) }
+
+.sc-cat { font-size:0.62rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-3);margin-top:8px }
+.sc-name { font-family:var(--serif);font-size:2rem;font-weight:400 }
+.col-clean { color:var(--score-clean) }
+.col-mod   { color:var(--score-mod) }
+.col-dirty { color:var(--score-dirty) }
+.sc-range  { font-size:0.72rem;color:var(--text-3) }
+
+/* ═══════ SCAN ═══════ */
+#scan {
+  border-top:1px solid var(--border);
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  min-height:80vh;
+}
+.scan-left {
+  padding:80px 64px;
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;justify-content:center;
+}
+.scan-right {
+  display:flex;align-items:center;justify-content:center;
+  padding:64px 52px;
+  background:var(--bg2);
+  transition:background 0.6s;
+}
+[data-theme="dark"] .scan-right {
+  background:rgba(1,42,97,0.3);
+}
+
+.scan-h2 {
+  font-family:var(--serif);
+  font-size:clamp(1.9rem,3vw,2.8rem);
+  font-weight:300;
+  line-height:1.1;
+  letter-spacing:-0.01em;
+  color:var(--text-1);
+  margin-bottom:16px;margin-top:12px;
+}
+ .scan-body {
+  font-size:1.02rem;color:var(--text-2);line-height:2;margin-bottom:36px;
+}
+
+.scan-info { display:flex;flex-direction:column;gap:0 }
+.si-row {
+  display:flex;align-items:flex-start;gap:16px;
+  padding:18px 0;border-bottom:1px solid var(--border);
+}
+.si-row:first-child { border-top:1px solid var(--border) }
+.si-dot {
+  width:8px;height:8px;border-radius:50%;
+  background:var(--accent);margin-top:6px;flex-shrink:0;
+}
+.si-text h4 { font-family:var(--body);font-size:0.88rem;font-weight:500;margin-bottom:4px }
+ .si-text p  { font-size:0.95rem;line-height:1.85;color:var(--text-2) }
+
+/* Scan widget */
+.scan-widget {
+  width:100%;max-width:460px;
+  background:var(--surface);
+  border:1px solid var(--border-m);
+  border-radius:24px;
+  overflow:hidden;
+  box-shadow:0 16px 56px rgba(0,0,0,0.08);
+  transition:background 0.6s;
+}
+[data-theme="dark"] .scan-widget { box-shadow:0 16px 56px rgba(0,0,0,0.32) }
+
+.sw-header {
+  padding:14px 20px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--surface2);
+  transition:background 0.6s;
+}
+.sw-dots { display:flex;gap:6px }
+.sw-dot  { width:9px;height:9px;border-radius:50% }
+.sw-title {
+  font-size:0.6rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-3)
+}
+
+.sw-body { padding:28px }
+.upload-zone {
+  border:2px dashed var(--border-m);
+  border-radius:16px;
+  padding:44px 28px;
+  text-align:center;
+  display:flex;flex-direction:column;align-items:center;gap:14px;
+  transition:background 0.2s, border-color 0.2s;
+  cursor:pointer;
+}
+.upload-zone:hover, .upload-zone.dragover {
+  background:var(--accent-bg);border-color:var(--accent);
+}
+.uz-icon-wrap {
+  width:64px;height:64px;border-radius:20px;
+  background:var(--accent-bg);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.8rem;
+  border:1px solid var(--border-m);
+}
+.uz-label { font-family:var(--body);font-weight:500;font-size:0.92rem;color:var(--text-1) }
+ .uz-sub   { font-size:0.88rem;color:var(--text-3);line-height:1.6 }
+.uz-btn {
+  font-family:var(--body);
+  font-size:0.72rem;font-weight:500;
+  letter-spacing:0.06em;
+  color:var(--bg);
+  background:var(--accent);
+  border:none;padding:10px 24px;border-radius:100px;cursor:pointer;
+  transition:opacity 0.2s;
+}
+[data-theme="light"] .uz-btn { color:#fff }
+.uz-hint { font-size:0.62rem;color:var(--text-3);letter-spacing:0.04em }
+
+#preview-area { display:none }
+#preview-img { width:100%;max-height:200px;object-fit:cover;display:block;border-radius:12px 12px 0 0 }
+.analyze-bar {
+  padding:14px 20px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-top:1px solid var(--border);
+}
+.analyze-bar span { font-size:0.64rem;color:var(--text-3);letter-spacing:0.08em;text-transform:uppercase }
+.analyze-run {
+  font-family:var(--body);font-size:0.7rem;font-weight:500;
+  letter-spacing:0.06em;
+  color:var(--bg);background:var(--accent);
+  border:none;padding:9px 20px;border-radius:100px;cursor:pointer;
+  transition:opacity 0.2s;
+}
+[data-theme="light"] .analyze-run { color:#fff }
+.analyze-run:hover { opacity:0.9 }
+.analyze-run:disabled { opacity:0.4;cursor:not-allowed }
+
+#loading-state { display:none;padding:48px 28px;text-align:center }
+.scanline-anim {
+  width:80%;height:2px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+  background-size:60% 100%;background-position:-100% 0;
+  margin:0 auto 20px;border-radius:1px;
+  animation:scanline-move 1.4s ease-in-out infinite;
+}
+@keyframes scanline-move{0%{background-position:-100% 0}100%{background-position:200% 0}}
+.loading-label { font-size:0.66rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--text-3) }
+
+#result-area { display:none }
+.result-panel { padding:24px 28px }
+.result-header {
+  display:flex;align-items:flex-start;justify-content:space-between;
+  margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid var(--border);
+}
+.result-tag-pill {
+  font-family:var(--body);font-size:0.62rem;font-weight:500;
+  letter-spacing:0.1em;text-transform:uppercase;
+  padding:5px 14px;border-radius:100px;
+  display:inline-block;margin-bottom:6px;
+}
+.rt-clean   { background:#90d5a5;color:#0f381b;border:2px solid #164d27 }
+.rt-moderate{ background:#e79760;color:#422816;border:2px solid #512f17 }
+.rt-dirty   { background:#ff502b;color:#431a12;border:2px solid #452119 }
+.result-meta { text-align:right }
+.result-score-big {
+  font-family:var(--serif);
+  font-size:3.4rem;font-weight:400;line-height:1;
+}
+.rs-clean   { color:var(--score-clean) }
+.rs-moderate{ color:var(--score-mod) }
+.rs-dirty   { color:var(--score-dirty) }
+.result-score-unit { font-size:0.62rem;letter-spacing:0.08em;color:var(--text-3) }
+
+.conf-block { margin-bottom:20px }
+.conf-head  { font-size:0.58rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-3);margin-bottom:12px }
+.conf-row   { display:flex;align-items:center;gap:10px;margin-bottom:10px }
+.conf-name  { font-size:0.64rem;color:var(--text-3);width:68px }
+.conf-track { flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden }
+.conf-bar   { height:100%;width:0%;border-radius:3px;transition:width 1s var(--ease-silk) }
+.cb-clean   { background:var(--score-clean) }
+.cb-moderate{ background:var(--score-mod) }
+.cb-dirty   { background:var(--score-dirty) }
+.conf-pct   { font-size:0.64rem;font-weight:500;width:32px;text-align:right }
+.cpct-clean { color:var(--score-clean) }
+.cpct-moderate { color:var(--score-mod) }
+.cpct-dirty { color:var(--score-dirty) }
+
+.rescan {
+  font-family:var(--body);font-size:0.7rem;font-weight:400;
+  letter-spacing:0.06em;text-transform:uppercase;
+  color:var(--text-2);background:none;
+  border:1px solid var(--border-m);
+  padding:9px 20px;border-radius:100px;cursor:pointer;
+  transition:border-color 0.2s,color 0.2s;
+  width:100%;margin-top:4px;
+}
+.rescan:hover { border-color:var(--accent);color:var(--accent) }
+
+/* ═══════ FOOTER ═══════ */
+footer {
+  border-top:1px solid var(--border);
+  background:var(--surface);
+  display:grid;grid-template-columns:1fr 1fr 1fr;
+  transition:background 0.6s;
+}
+.foot-cell { padding:44px 52px;border-right:1px solid var(--border) }
+.foot-cell:last-child { border-right:none }
+.foot-brand {
+  font-family:var(--serif);
+  font-size:1.3rem;font-weight:400;
+  margin-bottom:10px;color:var(--text-1);
+}
+ .foot-tag  { font-size:0.9rem;color:var(--text-3);line-height:1.9 }
+.foot-links { display:flex;flex-direction:column;gap:14px }
+ .foot-link {
+  font-family:var(--body);font-size:0.9rem;letter-spacing:0.06em;
+  color:var(--text-3);text-decoration:none;
+  display:flex;align-items:center;gap:10px;
+  transition:color 0.2s;
+}
+.foot-link:hover { color:var(--accent) }
+.foot-link::before { content:'→';color:var(--accent);transition:transform 0.2s }
+.foot-link:hover::before { transform:translateX(2px) }
+.foot-section-label {
+  font-size:0.6rem;letter-spacing:0.16em;text-transform:uppercase;
+  color:var(--text-3);margin-bottom:18px;
+}
+.foot-copy { font-size:0.65rem;color:var(--text-3);line-height:1.9 }
+.foot-version { font-size:0.58rem;color:var(--border-m);margin-top:12px }
+
+/* ═══════ REVEAL ANIMATIONS ═══════ */
+.r { opacity:0;transform:translateY(20px);transition:opacity 0.7s var(--ease-silk),transform 0.7s var(--ease-silk) }
+.r.d1 { transition-delay:0.08s }
+.r.d2 { transition-delay:0.16s }
+.r.d3 { transition-delay:0.24s }
+.r.on { opacity:1;transform:none }
+
+/* ═══════ RESPONSIVE ═══════ */
+@media(max-width:900px){
+  nav{padding:0 20px}
+  .nav-link{display:none}
+  #hero{grid-template-columns:1fr}
+  .hero-right{display:none}
+  .hero-left{padding:60px 28px}
+  #about{grid-template-columns:1fr}
+  .about-left{padding:52px 28px;border-right:none;border-bottom:1px solid var(--border)}
+  .about-right{padding:52px 28px}
+  .guide-header{padding:40px 28px 32px;flex-direction:column;gap:16px}
+  .guide-meta{text-align:left;max-width:none}
+  .guide-steps-grid{grid-template-columns:1fr}
+  .guide-step{border-right:none}
+  .score-matrix{grid-template-columns:1fr}
+  .score-cell{border-right:none;border-bottom:1px solid var(--border)}
+  #scan{grid-template-columns:1fr}
+  .scan-left{padding:52px 28px;border-right:none;border-bottom:1px solid var(--border)}
+  .scan-right{padding:40px 24px}
+  footer{grid-template-columns:1fr}
+  .foot-cell{border-right:none;border-bottom:1px solid var(--border)}
+  .status-bar{flex-direction:column}
+  .stat-cell{border-right:none;border-bottom:1px solid var(--border)}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:duration:0.01ms!important}}
+
+/* ===== ACCESSIBILITY TEXT IMPROVEMENTS ===== */
+body{
+  color:var(--text-1);
+  font-size:1rem;
+  line-height:1.7;
+}
+[data-theme="light"]{
+  --text-1:#1a1a1a;
+  --text-2:#333333;
+  --text-3:#4a4a4a;
+}
+[data-theme="dark"]{
+  --text-1:#F5F8FC;
+  --text-2:#D8E5EA;
+  --text-3:#BFCED8;
+}
+p,.hero-body,.about-body,.scan-body,.feat-content p,.gs-body,.si-text p,.guide-meta{
+  font-weight:400;
+  letter-spacing:0.01em;
+}
+.hc-label,.hc-sub,.chart-title,.chart-name,.stat-label,.stat-delta,
+.sc-cat,.sc-range,.sw-title,.loading-label,.foot-copy{
+  font-size:0.85rem !important;
+}
+.nav-wordmark,.gs-title,.si-text h4,.feat-content h4{
+  font-weight:600;
+}
+
+</style>
+</head>
+<body>
+
+<!-- ══ SPLASH ══ -->
+<div id="splash">
+  <!-- Organic decorative leaves -->
+  <div class="splash-deco">
+    <svg class="sd-tl" viewBox="0 0 400 380" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M200 360 C180 280 120 200 80 140 C60 110 40 80 60 50 C80 20 130 30 160 60 C190 90 210 140 220 190 C230 240 225 300 200 360Z" stroke="var(--accent)" stroke-width="1.5" fill="none"/>
+      <path d="M200 360 C190 300 170 240 150 190 C130 140 100 100 80 80" stroke="var(--accent)" stroke-width="1" fill="none" opacity="0.5"/>
+      <path d="M160 180 C130 160 100 150 80 140" stroke="var(--accent)" stroke-width="0.8" fill="none"/>
+      <path d="M185 240 C155 220 125 210 100 200" stroke="var(--accent)" stroke-width="0.8" fill="none"/>
+      <path d="M205 295 C175 275 145 265 120 255" stroke="var(--accent)" stroke-width="0.8" fill="none"/>
+    </svg>
+    <svg class="sd-br" viewBox="0 0 400 380" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M200 360 C180 280 120 200 80 140 C60 110 40 80 60 50 C80 20 130 30 160 60 C190 90 210 140 220 190 C230 240 225 300 200 360Z" stroke="var(--accent)" stroke-width="1.5" fill="none"/>
+      <path d="M200 360 C190 300 170 240 150 190 C130 140 100 100 80 80" stroke="var(--accent)" stroke-width="1" fill="none" opacity="0.5"/>
+      <path d="M160 180 C130 160 100 150 80 140" stroke="var(--accent)" stroke-width="0.8" fill="none"/>
+      <path d="M185 240 C155 220 125 210 100 200" stroke="var(--accent)" stroke-width="0.8" fill="none"/>
+    </svg>
+  </div>
+
+  <div class="splash-logo-wrap">
+    <svg class="nn-logo" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="width:120px;height:120px">
+      <defs>
+        <linearGradient id="sp-g1" x1="136.39" y1="379.87" x2="726.42" y2="674.04" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="var(--accent)" stop-opacity="0.3"/>
+          <stop offset=".51" stop-color="var(--accent)" stop-opacity="0.7"/>
+          <stop offset="1" stop-color="var(--accent)" stop-opacity="0.2"/>
+        </linearGradient>
+        <linearGradient id="sp-g2" x1="190.92" y1="270.51" x2="780.95" y2="564.68" xlink:href="#sp-g1"/>
+      </defs>
+      <rect class="logo-bg" y="-5.64" width="999.14" height="1006.71"/>
+      <g>
+        <g>
+          <path class="logo-leaf" d="M806.82,168.14c13.15,11.43,17.38,23.45,12.77,40.6-1.93,7.17-6.85,13.69-8.51,21.19-1.08,4.89-1.07,11.07-1.77,16.16,6.05-5.33,8.72-13.68,13.64-20.1,6.33-8.25,20.02-18.15,23.47-28.15h2.47c-1.73,12.02-7.5,38.62-18.14,45.58-11.38,7.45-20.2-.94-27.34,15.97-2.24,5.32-9.5,25.75-10.21,30.62-.11.73-.33,2.04.63,1.86,6.36-5.67,12.59-15.34,19.98-19.62,8.85-5.13,21.1-5.54,28.9-13.78h1.24c-9.49,12.54-16.04,28.27-32.2,33.99-5.89,2.09-13.67.9-17.27,2.53-1.31.59-8.89,8.66-10.55,10.48-6.84,7.52-12.45,17.34-20.39,24.15.79,1.62,3.38.1,4.58-.37,7.26-2.86,14.34-8.33,21.78-11.63,5.36-2.38,12.41-3.72,17.74-5.72,1.47-.55,1.91-1.09,1.7-2.69,2.82.13-1.61,7.3-2.25,8.27-10.21,15.42-23.77,12.34-38.87,15.57-5.33,1.14-10.24,4.28-15.81,4.61-.64-1.1-1.67-2.38-2.47-3.71,26.39-11.43,5.84-36.49,4.97-55.07-.32-6.85-.3-20.82,7.37-23.51-2.23,9.37,6.39,19.21,7.46,28.47,1.57,13.57-3.35,25.88-5.58,38.95,11.7-12.87,25.5-26.32,30.7-43.53,5.49-18.17-2.63-14.39-9.28-26.11-1.65-2.91-7.18-18.98-7.18-21.28v-22.27c0-.76-3.5-4.76.6-4.32,2.81,1.41,19.19,31.02,19.19,34.02v25.36l11.02-35.41c-9.23-20.18,2.34-40.44-2.36-61.09ZM790.73,239.9c-.1-3.22-.72-9.18-3.69-11.13-.06,3.6.01,9.21,3.69,11.13Z"/>
+          <path class="logo-leaf" d="M767.23,366.1c-1.3-3.22-4.65-10.5-6.19-13.61,3.5.49,10.76,1.29,13.92.94,6.73-.74,12.6-6,19.46-6.53-7.06,7.53-16.73,17.11-27.19,19.19Z"/>
+          <path class="logo-leaf" d="M726.4,300.53l14.84-14.84c.35,3-3.02,4.06-4.01,6.49-3.34,8.22,1.63,16.24,1.54,24.43-3.76-5.31-8.26-11.01-12.37-16.08Z"/>
+        </g>
+        <g>
+          <path class="logo-nn" d="M167.27,717.71v46.88c0,3.7.21,6.43.62,8.19.41,1.76,1.18,3.21,2.29,4.36,1,1.04,2.15,1.8,3.42,2.26,1.27.47,2.94.75,4.98.86v1.24h-24.84v-1.24c2.05-.11,3.71-.39,4.98-.86,1.27-.47,2.42-1.22,3.42-2.26,1.11-1.15,1.88-2.61,2.29-4.39.41-1.78.62-4.5.62-8.16v-39.77c0-3.63-.21-6.33-.62-8.11-.41-1.78-1.18-3.24-2.29-4.39-.97-1.04-2.09-1.8-3.37-2.26s-2.96-.75-5.04-.86v-1.24h20.75l43.75,55.82v-38.9c0-3.7-.21-6.43-.62-8.19s-1.18-3.21-2.29-4.37c-1.01-1.04-2.15-1.8-3.42-2.26-1.28-.47-2.94-.75-4.98-.86v-1.24h24.84v1.24c-3.59,0-6.39,1.04-8.41,3.12-1.11,1.15-1.88,2.61-2.29,4.39-.41,1.78-.62,4.48-.62,8.11v56.68h-2.42l-50.76-63.8Z"/>
+          <path class="logo-nn" d="M322.62,707.96l.92,17.78-1.24.05c-.47-3.02-1.24-5.51-2.32-7.49-1.08-1.98-2.64-3.72-4.69-5.23-1.69-1.26-3.68-2.15-5.98-2.67-2.3-.52-5.35-.78-9.16-.78h-12.34v32.33h3.23c3.27,0,5.73-.22,7.38-.65,1.65-.43,3-1.2,4.04-2.32,1-1.04,1.75-2.27,2.24-3.69.49-1.42.89-3.51,1.21-6.28l1.24.05-.22,28.88h-1.24c-.32-2.77-.8-4.99-1.43-6.68-.63-1.69-1.5-3.12-2.61-4.31-1.08-1.15-2.48-1.99-4.2-2.53-1.72-.54-3.92-.81-6.57-.81h-3.07v12.34c0,4.92.12,8.5.38,10.75.25,2.25.74,4.12,1.46,5.63,1.22,2.59,3.08,4.48,5.58,5.68,2.5,1.2,5.79,1.81,9.89,1.81,4.31,0,7.92-.55,10.83-1.64,2.91-1.1,5.28-2.79,7.11-5.09,1.29-1.54,2.34-3.3,3.15-5.28.81-1.97,1.55-4.58,2.24-7.81l1.24.05-.7,21.45h-64.28v-1.24c2.05-.11,3.71-.39,4.98-.86,1.27-.47,2.42-1.22,3.42-2.26,1.11-1.15,1.88-2.61,2.29-4.39.41-1.78.62-4.5.62-8.16v-39.71c0-3.66-.21-6.38-.62-8.16-.41-1.78-1.18-3.24-2.29-4.39-.97-1.04-2.09-1.8-3.37-2.26s-2.96-.75-5.04-.86v-1.24h57.92Z"/>
+          <path class="logo-nn" d="M436.04,781.51h-35.4v-1.24c3.2-.29,5.42-.83,6.68-1.62,2.23-1.4,3.34-3.34,3.34-5.82,0-1.47-.5-3.45-1.51-5.93l-.92-2.26-5.17-12.72h-23.71l-2.8,7.44-1.35,3.34c-1.62,3.95-2.42,7.06-2.42,9.32,0,1.33.3,2.57.89,3.72.59,1.15,1.39,2.08,2.4,2.8,1.4.97,3.2,1.54,5.39,1.72v1.24h-24.14v-1.24c1.9-.11,3.57-.57,5.01-1.4,1.44-.83,2.84-2.16,4.2-3.99,1.15-1.47,2.27-3.37,3.37-5.68,1.1-2.32,2.54-5.79,4.34-10.43l19.72-50.81h3.07l23.44,56.63c1.76,4.28,3.16,7.33,4.2,9.16s2.17,3.21,3.4,4.15c.86.65,1.85,1.14,2.96,1.48s2.78.64,5.01.89v1.24ZM402.2,749.72l-11.32-27.91-10.67,27.91h21.98Z"/>
+          <path class="logo-nn" d="M494.23,709.63c-2.26,0-4.69.07-7.27.22-5.53.29-9.65.99-12.37,2.1-2.71,1.11-4.95,3.04-6.71,5.77-1.62,2.51-2.86,5.93-3.72,10.24l-1.24-.11.97-19.88h72.9l.97,19.88-1.24.11c-.97-4.99-2.49-8.77-4.55-11.34-2.06-2.57-5.07-4.41-9.03-5.52-3.34-.97-9-1.46-16.97-1.46v54.96c0,3.66.21,6.38.62,8.16.41,1.78,1.18,3.24,2.29,4.39,1.01,1.04,2.15,1.8,3.42,2.26,1.27.47,2.94.75,4.98.86v1.24h-34.43v-1.24c2.08-.11,3.76-.39,5.04-.86,1.27-.47,2.42-1.22,3.42-2.26,1.11-1.15,1.88-2.6,2.29-4.36.41-1.76.62-4.49.62-8.19v-54.96Z"/>
+          <path class="logo-nn" d="M582.01,717.71v46.88c0,3.7.21,6.43.62,8.19s1.18,3.21,2.29,4.36c1.01,1.04,2.15,1.8,3.42,2.26,1.27.47,2.94.75,4.98.86v1.24h-24.84v-1.24c2.05-.11,3.71-.39,4.98-.86,1.28-.47,2.42-1.22,3.42-2.26,1.11-1.15,1.88-2.61,2.29-4.39.41-1.78.62-4.5.62-8.16v-39.77c0-3.63-.21-6.33-.62-8.11-.41-1.78-1.18-3.24-2.29-4.39-.97-1.04-2.09-1.8-3.37-2.26-1.28-.47-2.96-.75-5.04-.86v-1.24h20.74l43.75,55.82v-38.9c0-3.7-.21-6.43-.62-8.19-.41-1.76-1.18-3.21-2.29-4.37-1.01-1.04-2.15-1.8-3.42-2.26-1.28-.47-2.94-.75-4.98-.86v-1.24h24.84v1.24c-3.59,0-6.39,1.04-8.41,3.12-1.11,1.15-1.88,2.61-2.29,4.39-.41,1.78-.62,4.48-.62,8.11v56.68h-2.42l-50.76-63.8Z"/>
+          <path class="logo-nn" d="M737.35,707.96l.92,17.78-1.24.05c-.47-3.02-1.24-5.51-2.32-7.49s-2.64-3.72-4.69-5.23c-1.69-1.26-3.68-2.15-5.98-2.67s-5.35-.78-9.16-.78h-12.34v32.33h3.23c3.27,0,5.73-.22,7.38-.65,1.65-.43,3-1.2,4.04-2.32,1-1.04,1.75-2.27,2.24-3.69.48-1.42.89-3.51,1.21-6.28l1.24.05-.22,28.88h-1.24c-.32-2.77-.8-4.99-1.43-6.68-.63-1.69-1.5-3.12-2.61-4.31-1.08-1.15-2.48-1.99-4.2-2.53-1.72-.54-3.92-.81-6.57-.81h-3.07v12.34c0,4.92.12,8.5.38,10.75.25,2.25.74,4.12,1.46,5.63,1.22,2.59,3.08,4.48,5.58,5.68,2.5,1.2,5.79,1.81,9.89,1.81,4.31,0,7.92-.55,10.83-1.64,2.91-1.1,5.28-2.79,7.11-5.09,1.29-1.54,2.34-3.3,3.15-5.28.81-1.97,1.55-4.58,2.24-7.81l1.24.05-.7,21.45h-64.28v-1.24c2.05-.11,3.71-.39,4.98-.86,1.28-.47,2.42-1.22,3.42-2.26,1.11-1.15,1.88-2.61,2.29-4.39.41-1.78.62-4.5.62-8.16v-39.71c0-3.66-.21-6.38-.62-8.16-.41-1.78-1.18-3.24-2.29-4.39-.97-1.04-2.09-1.8-3.37-2.26-1.28-.47-2.96-.75-5.04-.86v-1.24h57.92Z"/>
+          <path class="logo-nn" d="M804.87,709.63c-2.26,0-4.69.07-7.27.22-5.53.29-9.65.99-12.37,2.1-2.71,1.11-4.95,3.04-6.71,5.77-1.62,2.51-2.86,5.93-3.72,10.24l-1.24-.11.97-19.88h72.9l.97,19.88-1.24.11c-.97-4.99-2.49-8.77-4.55-11.34s-5.07-4.41-9.03-5.52c-3.34-.97-9-1.46-16.97-1.46v54.96c0,3.66.21,6.38.62,8.16s1.18,3.24,2.29,4.39c1.01,1.04,2.15,1.8,3.42,2.26,1.27.47,2.94.75,4.98.86v1.24h-34.43v-1.24c2.08-.11,3.76-.39,5.04-.86,1.28-.47,2.42-1.22,3.42-2.26,1.11-1.15,1.88-2.6,2.29-4.36.41-1.76.62-4.49.62-8.19v-54.96Z"/>
+        </g>
+        <path class="logo-body" d="M780.86,485.51c1.77-1.04,2.93-2.4,3.66-3.98,1.5-3.18,1.26-7.23.83-11.1-.27-2.51-.64-4.96-.67-7.06-.37-25.24-5.69-63.1-14.55-89.43-.01-.02-.02-.05-.02-.06-.92-2.72-1.88-5.32-2.87-7.77-1.31-3.22-4.65-10.5-6.19-13.61-1.37-2.78-3.86-6.87-6.07-10.54-.95-1.56-1.84-3.03-2.59-4.31-.64-1.1-1.67-2.39-2.47-3.71-1.52-2.5-3.23-5.27-4.97-8.04-41.63-61.02-111.27-101.4-190.4-102.67-6.03.07-12.4.31-19.28.61-2.18.1-4.22.21-6.14.33-7.58.51-13.39,1.3-19.09,2.54-6.71,1.44-13.28,3.5-22.42,6.41-4.87,1.56-9.97,2.44-15.11,3.41-8.93,1.7-17.98,3.64-26.17,9.74-.89.67-1.67,1.58-2.38,2.52-1.34,1.78-2.39,3.66-3.35,4.12-1.68.79-3.6.58-5.56.68-1.03.04-2.07.17-3.08.58-2.52,1-5.63,3.43-8.08,6.15-1.22,1.36-2.29,2.78-3.04,4.14-.35.61-1.2.67-1.6.1-.19-.27-.48-.41-.78-.41-.2,0-.4.06-.56.19l-16.59,12.5c-.35.26-.47.73-.3,1.13.88,1.91,2.13,4.16,3.53,6.52l.04.06c3.85,6.45,8.87,13.67,10.99,16.88,12.99,19.8,27.18,38.9,41.09,58.16l28.47,41.03v.14l.97,1.26,167.02,239.17s.04.05.1.14c1.29,1.72,15.29,19.57,35.04,7.34,1.87-1.35,3.71-2.72,5.54-4.13.05-.02.1-.07.15-.11.04-.02.07-.06.11-.09h0c38.39-29.61,67.37-70.82,81.68-118.4,1.32-5.31,2.5-10.32,3.49-14.81,1.5-6.79,1.55-14.49,3.88-21.28.12-.37.01-.77-.28-1.01-.71-.59-1.41-1.19-2.12-1.77-.51-.42-.42-1.21.14-1.53ZM754.7,352.35l-1.25-4.8h1.41l-.16,4.8Z"/>
+        <path class="logo-body" d="M694.06,644.31h0s-.07.07-.11.1c.04-.04.07-.06.11-.1Z"/>
+        <g>
+          <path style="fill:url(#sp-g1)" d="M385.51,343.03v5.14c12.7,2.04,22.01,6.43,27.98,13.17,2.17,2.45,4.07,5.43,5.69,8.93,4.75,10.26,7.14,25.04,7.14,44.29v118.42c0,5.69-.4,30.42-1.24,30.42s-3-2.41-6.59-7.22l-164.14-213.15h-54.37v3.83c4.48-.18,14.73.07,24.47,6.81,5.99,4.14,9.23,8.95,11.49,12.36,8.4,12.74,10.1,26.28,10.34,34.56v144.96c0,18.78-1.98,33.22-5.92,43.29-1.68,4.25-3.69,7.73-6.07,10.44-5.63,6.39-14.56,10.53-26.81,12.43v5.47h81.88v-6.17c-11.3-2.34-19.61-6.81-24.93-13.42-1.9-2.36-3.58-5.27-5.03-8.75-4.88-11.6-7.31-29.39-7.31-53.42v-138.81c0-5.12.4-7.66,1.24-7.66l4.54,5.51,164.33,224.4h9.93v-204.31c0-19.24,2.15-34.01,6.44-44.27,1.47-3.5,3.2-6.48,5.16-8.95,5.2-6.5,13.09-10.81,23.68-12.91v-5.38h-81.88Z"/>
+          <path style="fill:url(#sp-g2)" d="M659.39,343.03v5.14c12.7,2.04,22.01,6.43,27.98,13.17,2.17,2.45,4.07,5.43,5.69,8.93,4.75,10.26,7.14,25.04,7.14,44.29v118.42c0,5.69-.4,30.42-1.24,30.42s-3-2.41-6.59-7.22l-164.14-213.15h-54.37v3.83c4.48-.18,14.73.07,24.47,6.81,5.99,4.14,9.23,8.95,11.49,12.36,8.4,12.74,10.1,26.28,10.34,34.56v144.96c0,18.78-1.98,33.22-5.92,43.29-1.68,4.25-3.69,7.73-6.07,10.44-5.63,6.39-14.56,10.53-26.81,12.43v5.47h81.88v-6.17c-11.3-2.34-19.61-6.81-24.93-13.42-1.9-2.36-3.58-5.27-5.03-8.75-4.88-11.6-7.31-29.39-7.31-53.42v-138.81c0-5.12.4-7.66,1.24-7.66l4.54,5.51,164.33,224.4h9.93v-204.31c0-19.24,2.15-34.01,6.44-44.27,1.47-3.5,3.2-6.48,5.16-8.95,5.2-6.5,13.09-10.81,23.68-12.91v-5.38h-81.88Z"/>
+        </g>
+      </g>
+    </svg>
+  </div>
+  <div class="splash-brand">NeatNet</div>
+  <div class="splash-sub">Road Cleanliness Intelligence</div>
+  <button class="splash-enter" onclick="dismissSplash()">Enter</button>
+  <div class="splash-bar"></div>
+</div>
+
+<!-- ══ NAV ══ -->
+<nav>
+  <a href="#hero" class="nav-logo">
+    <div class="nav-logo-mark">
+      <svg class="nn-logo" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="height:36px;width:auto">
+        <defs>
+          <linearGradient id="nav-g1" x1="136.39" y1="379.87" x2="726.42" y2="674.04" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="var(--accent)" stop-opacity="0.3"/>
+            <stop offset=".51" stop-color="var(--accent)" stop-opacity="0.7"/>
+            <stop offset="1" stop-color="var(--accent)" stop-opacity="0.2"/>
+          </linearGradient>
+          <linearGradient id="nav-g2" x1="190.92" y1="270.51" x2="780.95" y2="564.68" xlink:href="#nav-g1"/>
+        </defs>
+        <rect class="logo-bg" y="-5.64" width="999.14" height="1006.71"/>
+        <g>
+          <g>
+            <path class="logo-leaf" d="M806.82,168.14c13.15,11.43,17.38,23.45,12.77,40.6-1.93,7.17-6.85,13.69-8.51,21.19-1.08,4.89-1.07,11.07-1.77,16.16,6.05-5.33,8.72-13.68,13.64-20.1,6.33-8.25,20.02-18.15,23.47-28.15h2.47c-1.73,12.02-7.5,38.62-18.14,45.58-11.38,7.45-20.2-.94-27.34,15.97-2.24,5.32-9.5,25.75-10.21,30.62-.11.73-.33,2.04.63,1.86,6.36-5.67,12.59-15.34,19.98-19.62,8.85-5.13,21.1-5.54,28.9-13.78h1.24c-9.49,12.54-16.04,28.27-32.2,33.99-5.89,2.09-13.67.9-17.27,2.53-1.31.59-8.89,8.66-10.55,10.48-6.84,7.52-12.45,17.34-20.39,24.15.79,1.62,3.38.1,4.58-.37,7.26-2.86,14.34-8.33,21.78-11.63,5.36-2.38,12.41-3.72,17.74-5.72,1.47-.55,1.91-1.09,1.7-2.69,2.82.13-1.61,7.3-2.25,8.27-10.21,15.42-23.77,12.34-38.87,15.57-5.33,1.14-10.24,4.28-15.81,4.61-.64-1.1-1.67-2.38-2.47-3.71,26.39-11.43,5.84-36.49,4.97-55.07-.32-6.85-.3-20.82,7.37-23.51-2.23,9.37,6.39,19.21,7.46,28.47,1.57,13.57-3.35,25.88-5.58,38.95,11.7-12.87,25.5-26.32,30.7-43.53,5.49-18.17-2.63-14.39-9.28-26.11-1.65-2.91-7.18-18.98-7.18-21.28v-22.27c0-.76-3.5-4.76.6-4.32,2.81,1.41,19.19,31.02,19.19,34.02v25.36l11.02-35.41c-9.23-20.18,2.34-40.44-2.36-61.09ZM790.73,239.9c-.1-3.22-.72-9.18-3.69-11.13-.06,3.6.01,9.21,3.69,11.13Z"/>
+            <path class="logo-leaf" d="M767.23,366.1c-1.3-3.22-4.65-10.5-6.19-13.61,3.5.49,10.76,1.29,13.92.94,6.73-.74,12.6-6,19.46-6.53-7.06,7.53-16.73,17.11-27.19,19.19Z"/>
+            <path class="logo-leaf" d="M726.4,300.53l14.84-14.84c.35,3-3.02,4.06-4.01,6.49-3.34,8.22,1.63,16.24,1.54,24.43-3.76-5.31-8.26-11.01-12.37-16.08Z"/>
+          </g>
+          <g>
+            <path class="logo-nn" d="M167.27,717.71v46.88c0,3.7.21,6.43.62,8.19.41,1.76,1.18,3.21,2.29,4.36,1,1.04,2.15,1.8,3.42,2.26,1.27.47,2.94.75,4.98.86v1.24h-24.84v-1.24c2.05-.11,3.71-.39,4.98-.86,1.27-.47,2.42-1.22,3.42-2.26,1.11-1.15,1.88-2.61,2.29-4.39.41-1.78.62-4.5.62-8.16v-39.77c0-3.63-.21-6.33-.62-8.11-.41-1.78-1.18-3.24-2.29-4.39-.97-1.04-2.09-1.8-3.37-2.26s-2.96-.75-5.04-.86v-1.24h20.75l43.75,55.82v-38.9c0-3.7-.21-6.43-.62-8.19s-1.18-3.21-2.29-4.37c-1.01-1.04-2.15-1.8-3.42-2.26-1.28-.47-2.94-.75-4.98-.86v-1.24h24.84v1.24c-3.59,0-6.39,1.04-8.41,3.12-1.11,1.15-1.88,2.61-2.29,4.39-.41,1.78-.62,4.48-.62,8.11v56.68h-2.42l-50.76-63.8Z"/>
+            <path class="logo-nn" d="M322.62,707.96l.92,17.78-1.24.05c-.47-3.02-1.24-5.51-2.32-7.49-1.08-1.98-2.64-3.72-4.69-5.23-1.69-1.26-3.68-2.15-5.98-2.67-2.3-.52-5.35-.78-9.16-.78h-12.34v32.33h3.23c3.27,0,5.73-.22,7.38-.65,1.65-.43,3-1.2,4.04-2.32,1-1.04,1.75-2.27,2.24-3.69.49-1.42.89-3.51,1.21-6.28l1.24.05-.22,28.88h-1.24c-.32-2.77-.8-4.99-1.43-6.68-.63-1.69-1.5-3.12-2.61-4.31-1.08-1.15-2.48-1.99-4.2-2.53-1.72-.54-3.92-.81-6.57-.81h-3.07v12.34c0,4.92.12,8.5.38,10.75.25,2.25.74,4.12,1.46,5.63,1.22,2.59,3.08,4.48,5.58,5.68,2.5,1.2,5.79,1.81,9.89,1.81,4.31,0,7.92-.55,10.83-1.64,2.91-1.1,5.28-2.79,7.11-5.09,1.29-1.54,2.34-3.3,3.15-5.28.81-1.97,1.55-4.58,2.24-7.81l1.24.05-.7,21.45h-64.28v-1.24c2.05-.11,3.71-.39,4.98-.86,1.27-.47,2.42-1.22,3.42-2.26,1.11-1.15,1.88-2.61,2.29-4.39.41-1.78.62-4.5.62-8.16v-39.71c0-3.66-.21-6.38-.62-8.16-.41-1.78-1.18-3.24-2.29-4.39-.97-1.04-2.09-1.8-3.37-2.26s-2.96-.75-5.04-.86v-1.24h57.92Z"/>
+            <path class="logo-nn" d="M436.04,781.51h-35.4v-1.24c3.2-.29,5.42-.83,6.68-1.62,2.23-1.4,3.34-3.34,3.34-5.82,0-1.47-.5-3.45-1.51-5.93l-.92-2.26-5.17-12.72h-23.71l-2.8,7.44-1.35,3.34c-1.62,3.95-2.42,7.06-2.42,9.32,0,1.33.3,2.57.89,3.72.59,1.15,1.39,2.08,2.4,2.8,1.4.97,3.2,1.54,5.39,1.72v1.24h-24.14v-1.24c1.9-.11,3.57-.57,5.01-1.4,1.44-.83,2.84-2.16,4.2-3.99,1.15-1.47,2.27-3.37,3.37-5.68,1.1-2.32,2.54-5.79,4.34-10.43l19.72-50.81h3.07l23.44,56.63c1.76,4.28,3.16,7.33,4.2,9.16s2.17,3.21,3.4,4.15c.86.65,1.85,1.14,2.96,1.48s2.78.64,5.01.89v1.24ZM402.2,749.72l-11.32-27.91-10.67,27.91h21.98Z"/>
+            <path class="logo-nn" d="M494.23,709.63c-2.26,0-4.69.07-7.27.22-5.53.29-9.65.99-12.37,2.1-2.71,1.11-4.95,3.04-6.71,5.77-1.62,2.51-2.86,5.93-3.72,10.24l-1.24-.11.97-19.88h72.9l.97,19.88-1.24.11c-.97-4.99-2.49-8.77-4.55-11.34-2.06-2.57-5.07-4.41-9.03-5.52-3.34-.97-9-1.46-16.97-1.46v54.96c0,3.66.21,6.38.62,8.16.41,1.78,1.18,3.24,2.29,4.39,1.01,1.04,2.15,1.8,3.42,2.26,1.27.47,2.94.75,4.98.86v1.24h-34.43v-1.24c2.08-.11,3.76-.39,5.04-.86,1.27-.47,2.42-1.22,3.42-2.26,1.11-1.15,1.88-2.6,2.29-4.36.41-1.76.62-4.49.62-8.19v-54.96Z"/>
+            <path class="logo-nn" d="M582.01,717.71v46.88c0,3.7.21,6.43.62,8.19s1.18,3.21,2.29,4.36c1.01,1.04,2.15,1.8,3.42,2.26,1.27.47,2.94.75,4.98.86v1.24h-24.84v-1.24c2.05-.11,3.71-.39,4.98-.86,1.28-.47,2.42-1.22,3.42-2.26,1.11-1.15,1.88-2.61,2.29-4.39.41-1.78.62-4.5.62-8.16v-39.77c0-3.63-.21-6.33-.62-8.11-.41-1.78-1.18-3.24-2.29-4.39-.97-1.04-2.09-1.8-3.37-2.26-1.28-.47-2.96-.75-5.04-.86v-1.24h20.74l43.75,55.82v-38.9c0-3.7-.21-6.43-.62-8.19-.41-1.76-1.18-3.21-2.29-4.37-1.01-1.04-2.15-1.8-3.42-2.26-1.28-.47-2.94-.75-4.98-.86v-1.24h24.84v1.24c-3.59,0-6.39,1.04-8.41,3.12-1.11,1.15-1.88,2.61-2.29,4.39-.41,1.78-.62,4.48-.62,8.11v56.68h-2.42l-50.76-63.8Z"/>
+            <path class="logo-nn" d="M737.35,707.96l.92,17.78-1.24.05c-.47-3.02-1.24-5.51-2.32-7.49s-2.64-3.72-4.69-5.23c-1.69-1.26-3.68-2.15-5.98-2.67s-5.35-.78-9.16-.78h-12.34v32.33h3.23c3.27,0,5.73-.22,7.38-.65,1.65-.43,3-1.2,4.04-2.32,1-1.04,1.75-2.27,2.24-3.69.48-1.42.89-3.51,1.21-6.28l1.24.05-.22,28.88h-1.24c-.32-2.77-.8-4.99-1.43-6.68-.63-1.69-1.5-3.12-2.61-4.31-1.08-1.15-2.48-1.99-4.2-2.53-1.72-.54-3.92-.81-6.57-.81h-3.07v12.34c0,4.92.12,8.5.38,10.75.25,2.25.74,4.12,1.46,5.63,1.22,2.59,3.08,4.48,5.58,5.68,2.5,1.2,5.79,1.81,9.89,1.81,4.31,0,7.92-.55,10.83-1.64,2.91-1.1,5.28-2.79,7.11-5.09,1.29-1.54,2.34-3.3,3.15-5.28.81-1.97,1.55-4.58,2.24-7.81l1.24.05-.7,21.45h-64.28v-1.24c2.05-.11,3.71-.39,4.98-.86,1.28-.47,2.42-1.22,3.42-2.26,1.11-1.15,1.88-2.61,2.29-4.39.41-1.78.62-4.5.62-8.16v-39.71c0-3.66-.21-6.38-.62-8.16-.41-1.78-1.18-3.24-2.29-4.39-.97-1.04-2.09-1.8-3.37-2.26-1.28-.47-2.96-.75-5.04-.86v-1.24h57.92Z"/>
+            <path class="logo-nn" d="M804.87,709.63c-2.26,0-4.69.07-7.27.22-5.53.29-9.65.99-12.37,2.1-2.71,1.11-4.95,3.04-6.71,5.77-1.62,2.51-2.86,5.93-3.72,10.24l-1.24-.11.97-19.88h72.9l.97,19.88-1.24.11c-.97-4.99-2.49-8.77-4.55-11.34s-5.07-4.41-9.03-5.52c-3.34-.97-9-1.46-16.97-1.46v54.96c0,3.66.21,6.38.62,8.16s1.18,3.24,2.29,4.39c1.01,1.04,2.15,1.8,3.42,2.26,1.27.47,2.94.75,4.98.86v1.24h-34.43v-1.24c2.08-.11,3.76-.39,5.04-.86,1.28-.47,2.42-1.22,3.42-2.26,1.11-1.15,1.88-2.6,2.29-4.36.41-1.76.62-4.49.62-8.19v-54.96Z"/>
+          </g>
+          <path class="logo-body" d="M780.86,485.51c1.77-1.04,2.93-2.4,3.66-3.98,1.5-3.18,1.26-7.23.83-11.1-.27-2.51-.64-4.96-.67-7.06-.37-25.24-5.69-63.1-14.55-89.43-.01-.02-.02-.05-.02-.06-.92-2.72-1.88-5.32-2.87-7.77-1.31-3.22-4.65-10.5-6.19-13.61-1.37-2.78-3.86-6.87-6.07-10.54-.95-1.56-1.84-3.03-2.59-4.31-.64-1.1-1.67-2.39-2.47-3.71-1.52-2.5-3.23-5.27-4.97-8.04-41.63-61.02-111.27-101.4-190.4-102.67-6.03.07-12.4.31-19.28.61-2.18.1-4.22.21-6.14.33-7.58.51-13.39,1.3-19.09,2.54-6.71,1.44-13.28,3.5-22.42,6.41-4.87,1.56-9.97,2.44-15.11,3.41-8.93,1.7-17.98,3.64-26.17,9.74-.89.67-1.67,1.58-2.38,2.52-1.34,1.78-2.39,3.66-3.35,4.12-1.68.79-3.6.58-5.56.68-1.03.04-2.07.17-3.08.58-2.52,1-5.63,3.43-8.08,6.15-1.22,1.36-2.29,2.78-3.04,4.14-.35.61-1.2.67-1.6.1-.19-.27-.48-.41-.78-.41-.2,0-.4.06-.56.19l-16.59,12.5c-.35.26-.47.73-.3,1.13.88,1.91,2.13,4.16,3.53,6.52l.04.06c3.85,6.45,8.87,13.67,10.99,16.88,12.99,19.8,27.18,38.9,41.09,58.16l28.47,41.03v.14l.97,1.26,167.02,239.17s.04.05.1.14c1.29,1.72,15.29,19.57,35.04,7.34,1.87-1.35,3.71-2.72,5.54-4.13.05-.02.1-.07.15-.11.04-.02.07-.06.11-.09h0c38.39-29.61,67.37-70.82,81.68-118.4,1.32-5.31,2.5-10.32,3.49-14.81,1.5-6.79,1.55-14.49,3.88-21.28.12-.37.01-.77-.28-1.01-.71-.59-1.41-1.19-2.12-1.77-.51-.42-.42-1.21.14-1.53ZM754.7,352.35l-1.25-4.8h1.41l-.16,4.8Z"/>
+          <path class="logo-body" d="M694.06,644.31h0s-.07.07-.11.1c.04-.04.07-.06.11-.1Z"/>
+          <g>
+            <path style="fill:url(#nav-g1)" d="M385.51,343.03v5.14c12.7,2.04,22.01,6.43,27.98,13.17,2.17,2.45,4.07,5.43,5.69,8.93,4.75,10.26,7.14,25.04,7.14,44.29v118.42c0,5.69-.4,30.42-1.24,30.42s-3-2.41-6.59-7.22l-164.14-213.15h-54.37v3.83c4.48-.18,14.73.07,24.47,6.81,5.99,4.14,9.23,8.95,11.49,12.36,8.4,12.74,10.1,26.28,10.34,34.56v144.96c0,18.78-1.98,33.22-5.92,43.29-1.68,4.25-3.69,7.73-6.07,10.44-5.63,6.39-14.56,10.53-26.81,12.43v5.47h81.88v-6.17c-11.3-2.34-19.61-6.81-24.93-13.42-1.9-2.36-3.58-5.27-5.03-8.75-4.88-11.6-7.31-29.39-7.31-53.42v-138.81c0-5.12.4-7.66,1.24-7.66l4.54,5.51,164.33,224.4h9.93v-204.31c0-19.24,2.15-34.01,6.44-44.27,1.47-3.5,3.2-6.48,5.16-8.95,5.2-6.5,13.09-10.81,23.68-12.91v-5.38h-81.88Z"/>
+            <path style="fill:url(#nav-g2)" d="M659.39,343.03v5.14c12.7,2.04,22.01,6.43,27.98,13.17,2.17,2.45,4.07,5.43,5.69,8.93,4.75,10.26,7.14,25.04,7.14,44.29v118.42c0,5.69-.4,30.42-1.24,30.42s-3-2.41-6.59-7.22l-164.14-213.15h-54.37v3.83c4.48-.18,14.73.07,24.47,6.81,5.99,4.14,9.23,8.95,11.49,12.36,8.4,12.74,10.1,26.28,10.34,34.56v144.96c0,18.78-1.98,33.22-5.92,43.29-1.68,4.25-3.69,7.73-6.07,10.44-5.63,6.39-14.56,10.53-26.81,12.43v5.47h81.88v-6.17c-11.3-2.34-19.61-6.81-24.93-13.42-1.9-2.36-3.58-5.27-5.03-8.75-4.88-11.6-7.31-29.39-7.31-53.42v-138.81c0-5.12.4-7.66,1.24-7.66l4.54,5.51,164.33,224.4h9.93v-204.31c0-19.24,2.15-34.01,6.44-44.27,1.47-3.5,3.2-6.48,5.16-8.95,5.2-6.5,13.09-10.81,23.68-12.91v-5.38h-81.88Z"/>
+          </g>
+        </g>
+      </svg>
+    </div>
+    <span class="nav-wordmark">NeatNet</span>
+  </a>
+  <div class="nav-links">
+    <a href="#about" class="nav-link">About</a>
+    <a href="#guide" class="nav-link">How It Works</a>
+    <a href="#scan" class="nav-cta">Scan a Road</a>
+    <button class="theme-toggle" id="theme-btn" aria-label="Toggle theme">☽</button>
+  </div>
+</nav>
+
+<!-- ══ TICKER ══ 
+<div class="ticker">
+  <div class="ticker-inner">
+    <span class="tick-item">System <span class="tick-accent">● Online</span></span>
+    <span class="tick-item">Last Scan <span class="tick-accent">2 min ago</span></span>
+    <span class="tick-item">Clean Road <span class="tick-accent">Score 84 / 100</span></span>
+    <span class="tick-item">Moderate Road <span class="tick-warn">Score 52 / 100</span></span>
+    <span class="tick-item">Dirty Road <span class="tick-danger">Score 18 / 100</span></span>
+    <span class="tick-item">AI Model <span class="tick-accent">Vision v3.1</span></span>
+    <span class="tick-item">Accuracy <span class="tick-accent">96.4%</span></span>
+    <span class="tick-item">Avg Processing <span class="tick-accent">~2.1s</span></span>
+    <span class="tick-item">Scanned Today <span class="tick-accent">1,248 roads</span></span>
+     duplicate for seamless loop 
+    <span class="tick-item">System <span class="tick-accent">● Online</span></span>
+    <span class="tick-item">Last Scan <span class="tick-accent">2 min ago</span></span>
+    <span class="tick-item">Clean Road <span class="tick-accent">Score 84 / 100</span></span>
+    <span class="tick-item">Moderate Road <span class="tick-warn">Score 52 / 100</span></span>
+    <span class="tick-item">Dirty Road <span class="tick-danger">Score 18 / 100</span></span>
+    <span class="tick-item">AI Model <span class="tick-accent">Vision v3.1</span></span>
+    <span class="tick-item">Accuracy <span class="tick-accent">96.4%</span></span>
+    <span class="tick-item">Avg Processing <span class="tick-accent">~2.1s</span></span>
+    <span class="tick-item">Scanned Today <span class="tick-accent">1,248 roads</span></span>
+  </div>
+</div> -->
+
+<!-- ══ HERO ══ -->
+<section id="hero">
+  <div class="hero-left">
+    <div class="hero-eyebrow r">
+      <span class="eyebrow-line"></span>
+      AI-Powered Road Analysis
+    </div>
+    <h1 class="hero-h1 r d1">
+      <span class="block">Roads</span>
+      <span class="block"><em>Scanned.</em></span>
+      <span class="block">Scored.</span>
+    </h1>
+    <p class="hero-body r d2">
+      Upload any road photograph. NeatNet's computer vision model evaluates surface
+      cleanliness, detects litter and debris, and returns a precision score in seconds.
+      No expertise required.
+    </p>
+    <div class="hero-actions r d3">
+      <a href="#scan" class="btn-primary">Scan a Road</a>
+      <a href="#about" class="btn-ghost">Learn more</a>
+    </div>
+  </div>
+
+  <div class="hero-right">
+    <div class="hero-blob"></div>
+
+    <!-- Organic scanner illustration -->
+    <div class="hero-visual r d1">
+      <svg viewBox="0 0 380 380" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Outer soft organic ring -->
+        <g class="hv-ring1">
+          <circle cx="190" cy="190" r="168" stroke="var(--border-m)" stroke-width="1" stroke-dasharray="6 10"/>
+        </g>
+        <!-- Petal ring -->
+        <g class="hv-petals">
+          <ellipse cx="190" cy="62" rx="12" ry="24" fill="var(--accent)" opacity="0.18"/>
+          <ellipse cx="190" cy="62" rx="12" ry="24" fill="none" stroke="var(--accent)" stroke-width="0.8" opacity="0.5"/>
+          <ellipse cx="318" cy="190" rx="24" ry="12" fill="var(--accent)" opacity="0.12"/>
+          <ellipse cx="318" cy="190" rx="24" ry="12" fill="none" stroke="var(--accent)" stroke-width="0.8" opacity="0.4"/>
+          <ellipse cx="190" cy="318" rx="12" ry="24" fill="var(--accent)" opacity="0.18"/>
+          <ellipse cx="190" cy="318" rx="12" ry="24" fill="none" stroke="var(--accent)" stroke-width="0.8" opacity="0.5"/>
+          <ellipse cx="62" cy="190" rx="24" ry="12" fill="var(--accent)" opacity="0.12"/>
+          <ellipse cx="62" cy="190" rx="24" ry="12" fill="none" stroke="var(--accent)" stroke-width="0.8" opacity="0.4"/>
+        </g>
+        <!-- Inner ring -->
+        <g class="hv-ring2">
+          <circle cx="190" cy="190" r="110" stroke="var(--accent)" stroke-width="0.7" stroke-dasharray="3 7" opacity="0.4"/>
+        </g>
+        <!-- Soft glow circle -->
+        <circle cx="190" cy="190" r="72" fill="var(--accent)" opacity="0.06"/>
+        <!-- Leaf botanical decoration -->
+        <path d="M190 130 C185 150 175 165 168 178 C161 190 158 200 162 210 C166 220 178 224 190 222 C202 224 214 220 218 210 C222 200 219 190 212 178 C205 165 195 150 190 130Z" fill="var(--accent)" opacity="0.12" stroke="var(--accent)" stroke-width="0.8"/>
+        <path d="M190 130 C190 150 190 170 190 190 C190 210 190 215 190 222" stroke="var(--accent)" stroke-width="0.8" opacity="0.5"/>
+        <path d="M173 165 C180 168 186 170 190 170" stroke="var(--accent)" stroke-width="0.6" opacity="0.5"/>
+        <path d="M166 185 C175 186 183 187 190 187" stroke="var(--accent)" stroke-width="0.6" opacity="0.5"/>
+        <path d="M168 205 C177 204 184 203 190 203" stroke="var(--accent)" stroke-width="0.6" opacity="0.5"/>
+        <!-- Center pulse -->
+        <circle cx="190" cy="190" r="16" stroke="var(--accent)" stroke-width="1.5" class="hv-inner-pulse" fill="none"/>
+        <circle cx="190" cy="190" r="4" fill="var(--accent)"/>
+        <!-- Sweep line -->
+        <line x1="190" y1="190" x2="190" y2="84" stroke="var(--accent)" stroke-width="1" opacity="0.5" class="hv-ring2"/>
+        <!-- Corner marks -->
+        <path d="M50 50 L50 72 M50 50 L72 50" stroke="var(--accent)" stroke-width="1" opacity="0.4"/>
+        <path d="M330 50 L330 72 M330 50 L308 50" stroke="var(--accent)" stroke-width="1" opacity="0.4"/>
+        <path d="M50 330 L50 308 M50 330 L72 330" stroke="var(--accent)" stroke-width="1" opacity="0.4"/>
+        <path d="M330 330 L330 308 M330 330 L308 330" stroke="var(--accent)" stroke-width="1" opacity="0.4"/>
+      </svg>
+
+      <!-- Floating data cards -->
+      <div class="hero-card hero-card-1">
+        <div class="hc-label">Confidence</div>
+        <div class="hc-value">96.4%</div>
+      </div>
+      <div class="hero-card hero-card-2">
+        <div class="hc-label">Score</div>
+        <div class="hc-value">84</div>
+        <div class="hc-sub">Clean</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ STATUS BAR ══ 
+<div class="status-bar r">
+  <div class="stat-cell">
+    <div class="stat-label">Roads scanned today</div>
+    <div class="stat-val green">1,248</div>
+    <div class="stat-delta">↑ 14% from yesterday</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-label">Avg. cleanliness score</div>
+    <div class="stat-val amber">61.3</div>
+    <div class="stat-delta">Moderate range</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-label">Flagged dirty today</div>
+    <div class="stat-val red">314</div>
+    <div class="stat-delta">↓ 8 from yesterday</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-label">Processing speed</div>
+    <div class="stat-val green">2.1s</div>
+    <div class="stat-delta">Average per image</div>
+  </div>
+</div>-->
+
+<!-- ══ ABOUT ══ -->
+<section id="about">
+  <div class="about-left">
+    <span class="section-eyebrow r">About</span>
+    <div class="about-pull r d1">
+      Dirty roads are a <em>data problem.</em><br>We made the data visible.
+    </div>
+    <p class="about-body r d2">
+      Road cleanliness directly affects public health, stormwater quality, and how
+      communities feel about where they live. Most cleanliness assessments rely on
+      slow, expensive manual surveys.<br/><br/>
+      NeatNet turns any smartphone photograph into a precise cleanliness readout —
+      powered by a computer vision model trained on thousands of road surface images
+      across urban and rural environments.
+    </p>
+    <div class="data-pill r d2">Environmental monitoring tool</div>
+
+    <div class="chart-panel r d3">
+      <div class="chart-title">Live Distribution — Today's Scans</div>
+      <div class="chart-row">
+        <div class="chart-name">Clean</div>
+        <div class="chart-track">
+          <div class="chart-fill cf-clean" id="bar-about-clean" style="width:0%"></div>
+        </div>
+        <div class="chart-pct cpct-clean">38%</div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-name">Moderate</div>
+        <div class="chart-track">
+          <div class="chart-fill cf-mod" id="bar-about-mod" style="width:0%"></div>
+        </div>
+        <div class="chart-pct cpct-mod">37%</div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-name">Dirty</div>
+        <div class="chart-track">
+          <div class="chart-fill cf-dirty" id="bar-about-dirty" style="width:0%"></div>
+        </div>
+        <div class="chart-pct cpct-dirty">25%</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="about-right">
+    <span class="section-eyebrow r">Why It Matters</span>
+    <div class="feat-list">
+      <div class="feat-item r d1">
+        <div class="feat-icon">🌿</div>
+        <div class="feat-content">
+          <h4>Environmental health</h4>
+          <p>Litter and debris enter waterways during rainfall, harming ecosystems. Identifying problem roads early makes intervention faster and cheaper.</p>
+        </div>
+      </div>
+      <div class="feat-item r d2">
+        <div class="feat-icon">⚡</div>
+        <div class="feat-content">
+          <h4>Instant AI analysis</h4>
+          <p>Our model evaluates texture, object density, and surface anomalies in parallel — returning a confidence-weighted score in under three seconds.</p>
+        </div>
+      </div>
+      <div class="feat-item r d3">
+        <div class="feat-icon">🎯</div>
+        <div class="feat-content">
+          <h4>Three-tier scoring system</h4>
+          <p>Clean, Moderate, and Dirty thresholds are calibrated against municipal cleanliness standards. Each score includes a full confidence breakdown.</p>
+        </div>
+      </div>
+      <div class="feat-item r">
+        <div class="feat-icon">🔒</div>
+        <div class="feat-content">
+          <h4>Zero data retained</h4>
+          <p>Your image is analysed in memory and immediately discarded. NeatNet never stores road photographs or location data.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ GUIDE ══ -->
+<section id="guide">
+  <div class="guide-header">
+    <div>
+      <span class="section-eyebrow r">How It Works</span>
+      <h2 class="guide-h2 r d1">From photo to score<br>in three steps.</h2>
+    </div>
+    <div class="guide-meta r d2">
+      No account needed.<br>No installation required.<br>Works on any device.
+    </div>
+  </div>
+
+  <div class="guide-steps-grid">
+    <div class="guide-step r">
+      <div class="gs-num">1</div>
+      <span class="gs-icon">📸</span>
+      <h3 class="gs-title">Upload your image</h3>
+      <p class="gs-body">Take or select a clear photo of any road surface. Overhead, street-level, or any angle — the model handles varied perspectives.</p>
+      <span class="gs-pill">JPG · PNG · WEBP</span>
+    </div>
+    <div class="guide-step r d1">
+      <div class="gs-num">2</div>
+      <span class="gs-icon">🔬</span>
+      <h3 class="gs-title">AI scans the surface</h3>
+      <p class="gs-body">Computer vision analyses litter density, debris patterns, staining, and surface anomalies simultaneously across the image.</p>
+      <span class="gs-pill">~2.1s average</span>
+    </div>
+    <div class="guide-step r d2">
+      <div class="gs-num">3</div>
+      <span class="gs-icon">📊</span>
+      <h3 class="gs-title">Receive your score</h3>
+      <p class="gs-body">Get a 0–100 cleanliness score, a classification tag, and a full confidence breakdown for each category — instantly.</p>
+      <span class="gs-pill">0 – 100 scale</span>
+    </div>
+  </div>
+
+  <div class="score-matrix">
+    <div class="score-cell sc-clean r">
+      <div class="sc-cat">Category</div>
+      <div class="sc-name col-clean">Clean</div>
+      <div class="sc-range">Score 66 – 100</div>
+    </div>
+    <div class="score-cell sc-mod r d1">
+      <div class="sc-cat">Category</div>
+      <div class="sc-name col-mod">Moderate</div>
+      <div class="sc-range">Score 34 – 65</div>
+    </div>
+    <div class="score-cell sc-dirty r d2">
+      <div class="sc-cat">Category</div>
+      <div class="sc-name col-dirty">Dirty</div>
+      <div class="sc-range">Score 0 – 33</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ SCAN ══ -->
+<section id="scan">
+  <div class="scan-left">
+    <span class="section-eyebrow r">Scan Interface</span>
+    <h2 class="scan-h2 r d1">Scan your<br>road now.</h2>
+    <p class="scan-body r d2">Drop any road image into the scanner. The system returns a live result within seconds — no account, no installation.</p>
+
+    <div class="scan-info r d2">
+      <div class="si-row">
+        <div class="si-dot"></div>
+        <div class="si-text">
+          <h4>Real-time processing</h4>
+          <p>Your image is sent directly to the AI model and analysed in memory. No queue, no wait.</p>
+        </div>
+      </div>
+      <div class="si-row">
+        <div class="si-dot"></div>
+        <div class="si-text">
+          <h4>Full confidence breakdown</h4>
+          <p>Every result shows exact probabilities for Clean, Moderate, and Dirty — not just the top prediction.</p>
+        </div>
+      </div>
+      <div class="si-row">
+        <div class="si-dot"></div>
+        <div class="si-text">
+          <h4>Any road, any angle</h4>
+          <p>Urban streets, highways, alleyways — the model is trained across all surface types.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scan-right">
+    <div class="scan-widget r d1">
+      <div class="sw-header">
+        <div class="sw-dots">
+          <div class="sw-dot" style="background:#C47B6E"></div>
+          <div class="sw-dot" style="background:var(--score-mod)"></div>
+          <div class="sw-dot" style="background:var(--score-clean)"></div>
+        </div>
+        <div class="sw-title">NeatNet Scanner</div>
+      </div>
+
+      <div class="sw-body" id="upload-state">
+        <label class="upload-zone" for="file-input" id="upload-zone">
+          <div class="uz-icon-wrap">📷</div>
+          <div>
+            <div class="uz-label">Drop road image here</div>
+            <div class="uz-sub">or click to browse your files</div>
+          </div>
+          <div class="uz-btn">Choose File</div>
+          <div class="uz-hint">JPG · PNG · WEBP · Your image is never stored</div>
+        </label>
+        <input type="file" id="file-input" accept="image/*" style="display:none"/>
+      </div>
+
+      <div id="preview-area">
+        <img id="preview-img" src="" alt="Road preview"/>
+        <div class="analyze-bar">
+          <span>Image loaded — ready to scan</span>
+          <button class="analyze-run" id="analyze-btn" onclick="analyzeImage()">Run Scan →</button>
+        </div>
+      </div>
+
+      <div id="loading-state">
+        <div style="padding-top:16px;padding-bottom:16px">
+          <div class="scanline-anim"></div>
+          <div class="loading-label">Scanning road surface…</div>
+        </div>
+      </div>
+
+      <div id="result-area">
+        <div class="result-panel">
+          <div class="result-header">
+            <div>
+              <div style="font-size:0.58rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Classification</div>
+              <span class="result-tag-pill" id="result-tag"></span>
+            </div>
+            <div class="result-meta">
+              <div style="font-size:1rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Score</div>
+              <div class="result-score-big" id="result-score"></div>
+              <div class="result-score-unit">/ 100</div>
+            </div>
+          </div>
+          <div class="conf-block">
+            <div class="conf-head">Confidence breakdown</div>
+            <div class="conf-row">
+              <div class="conf-name" style="color:var(--score-clean)">Clean</div>
+              <div class="conf-track"><div class="conf-bar cb-clean" id="bar-clean"></div></div>
+              <div class="conf-pct cpct-clean" id="pct-clean">0%</div>
+            </div>
+            <div class="conf-row">
+              <div class="conf-name" style="color:var(--score-mod)">Moderate</div>
+              <div class="conf-track"><div class="conf-bar cb-moderate" id="bar-moderate"></div></div>
+              <div class="conf-pct cpct-moderate" id="pct-moderate">0%</div>
+            </div>
+            <div class="conf-row">
+              <div class="conf-name" style="color:var(--score-dirty)">Dirty</div>
+              <div class="conf-track"><div class="conf-bar cb-dirty" id="bar-dirty"></div></div>
+              <div class="conf-pct cpct-dirty" id="pct-dirty">0%</div>
+            </div>
+          </div>
+          <button class="rescan" onclick="resetScan()">↩ Scan Another Road</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ FOOTER ══ -->
+<footer>
+  <div class="foot-cell">
+    <a href="#hero" class="nav-logo">
+    <div class="nav-logo-mark">
+      <svg class="nn-logo" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="height:36px;width:auto">
+        <defs>
+          <linearGradient id="nav-g1" x1="136.39" y1="379.87" x2="726.42" y2="674.04" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="var(--accent)" stop-opacity="0.3"/>
+            <stop offset=".51" stop-color="var(--accent)" stop-opacity="0.7"/>
+            <stop offset="1" stop-color="var(--accent)" stop-opacity="0.2"/>
+          </linearGradient>
+          <linearGradient id="nav-g2" x1="190.92" y1="270.51" x2="780.95" y2="564.68" xlink:href="#nav-g1"/>
+        </defs>
+        <rect class="logo-bg" y="-5.64" width="999.14" height="1006.71"/>
+        <g>
+          <g>
+            <path class="logo-leaf" d="M806.82,168.14c13.15,11.43,17.38,23.45,12.77,40.6-1.93,7.17-6.85,13.69-8.51,21.19-1.08,4.89-1.07,11.07-1.77,16.16,6.05-5.33,8.72-13.68,13.64-20.1,6.33-8.25,20.02-18.15,23.47-28.15h2.47c-1.73,12.02-7.5,38.62-18.14,45.58-11.38,7.45-20.2-.94-27.34,15.97-2.24,5.32-9.5,25.75-10.21,30.62-.11.73-.33,2.04.63,1.86,6.36-5.67,12.59-15.34,19.98-19.62,8.85-5.13,21.1-5.54,28.9-13.78h1.24c-9.49,12.54-16.04,28.27-32.2,33.99-5.89,2.09-13.67.9-17.27,2.53-1.31.59-8.89,8.66-10.55,10.48-6.84,7.52-12.45,17.34-20.39,24.15.79,1.62,3.38.1,4.58-.37,7.26-2.86,14.34-8.33,21.78-11.63,5.36-2.38,12.41-3.72,17.74-5.72,1.47-.55,1.91-1.09,1.7-2.69,2.82.13-1.61,7.3-2.25,8.27-10.21,15.42-23.77,12.34-38.87,15.57-5.33,1.14-10.24,4.28-15.81,4.61-.64-1.1-1.67-2.38-2.47-3.71,26.39-11.43,5.84-36.49,4.97-55.07-.32-6.85-.3-20.82,7.37-23.51-2.23,9.37,6.39,19.21,7.46,28.47,1.57,13.57-3.35,25.88-5.58,38.95,11.7-12.87,25.5-26.32,30.7-43.53,5.49-18.17-2.63-14.39-9.28-26.11-1.65-2.91-7.18-18.98-7.18-21.28v-22.27c0-.76-3.5-4.76.6-4.32,2.81,1.41,19.19,31.02,19.19,34.02v25.36l11.02-35.41c-9.23-20.18,2.34-40.44-2.36-61.09ZM790.73,239.9c-.1-3.22-.72-9.18-3.69-11.13-.06,3.6.01,9.21,3.69,11.13Z"/>
+            <path class="logo-leaf" d="M767.23,366.1c-1.3-3.22-4.65-10.5-6.19-13.61,3.5.49,10.76,1.29,13.92.94,6.73-.74,12.6-6,19.46-6.53-7.06,7.53-16.73,17.11-27.19,19.19Z"/>
+            <path class="logo-leaf" d="M726.4,300.53l14.84-14.84c.35,3-3.02,4.06-4.01,6.49-3.34,8.22,1.63,16.24,1.54,24.43-3.76-5.31-8.26-11.01-12.37-16.08Z"/>
+          </g>
+          <g>
+            <path class="logo-nn" d="M167.27,717.71v46.88c0,3.7.21,6.43.62,8.19.41,1.76,1.18,3.21,2.29,4.36,1,1.04,2.15,1.8,3.42,2.26,1.27.47,2.94.75,4.98.86v1.24h-24.84v-1.24c2.05-.11,3.71-.39,4.98-.86,1.27-.47,2.42-1.22,3.42-2.26,1.11-1.15,1.88-2.61,2.29-4.39.41-1.78.62-4.5.62-8.16v-39.77c0-3.63-.21-6.33-.62-8.11-.41-1.78-1.18-3.24-2.29-4.39-.97-1.04-2.09-1.8-3.37-2.26s-2.96-.75-5.04-.86v-1.24h20.75l43.75,55.82v-38.9c0-3.7-.21-6.43-.62-8.19s-1.18-3.21-2.29-4.37c-1.01-1.04-2.15-1.8-3.42-2.26-1.28-.47-2.94-.75-4.98-.86v-1.24h24.84v1.24c-3.59,0-6.39,1.04-8.41,3.12-1.11,1.15-1.88,2.61-2.29,4.39-.41,1.78-.62,4.48-.62,8.11v56.68h-2.42l-50.76-63.8Z"/>
+            <path class="logo-nn" d="M322.62,707.96l.92,17.78-1.24.05c-.47-3.02-1.24-5.51-2.32-7.49-1.08-1.98-2.64-3.72-4.69-5.23-1.69-1.26-3.68-2.15-5.98-2.67-2.3-.52-5.35-.78-9.16-.78h-12.34v32.33h3.23c3.27,0,5.73-.22,7.38-.65,1.65-.43,3-1.2,4.04-2.32,1-1.04,1.75-2.27,2.24-3.69.49-1.42.89-3.51,1.21-6.28l1.24.05-.22,28.88h-1.24c-.32-2.77-.8-4.99-1.43-6.68-.63-1.69-1.5-3.12-2.61-4.31-1.08-1.15-2.48-1.99-4.2-2.53-1.72-.54-3.92-.81-6.57-.81h-3.07v12.34c0,4.92.12,8.5.38,10.75.25,2.25.74,4.12,1.46,5.63,1.22,2.59,3.08,4.48,5.58,5.68,2.5,1.2,5.79,1.81,9.89,1.81,4.31,0,7.92-.55,10.83-1.64,2.91-1.1,5.28-2.79,7.11-5.09,1.29-1.54,2.34-3.3,3.15-5.28.81-1.97,1.55-4.58,2.24-7.81l1.24.05-.7,21.45h-64.28v-1.24c2.05-.11,3.71-.39,4.98-.86,1.27-.47,2.42-1.22,3.42-2.26,1.11-1.15,1.88-2.61,2.29-4.39.41-1.78.62-4.5.62-8.16v-39.71c0-3.66-.21-6.38-.62-8.16-.41-1.78-1.18-3.24-2.29-4.39-.97-1.04-2.09-1.8-3.37-2.26s-2.96-.75-5.04-.86v-1.24h57.92Z"/>
+            <path class="logo-nn" d="M436.04,781.51h-35.4v-1.24c3.2-.29,5.42-.83,6.68-1.62,2.23-1.4,3.34-3.34,3.34-5.82,0-1.47-.5-3.45-1.51-5.93l-.92-2.26-5.17-12.72h-23.71l-2.8,7.44-1.35,3.34c-1.62,3.95-2.42,7.06-2.42,9.32,0,1.33.3,2.57.89,3.72.59,1.15,1.39,2.08,2.4,2.8,1.4.97,3.2,1.54,5.39,1.72v1.24h-24.14v-1.24c1.9-.11,3.57-.57,5.01-1.4,1.44-.83,2.84-2.16,4.2-3.99,1.15-1.47,2.27-3.37,3.37-5.68,1.1-2.32,2.54-5.79,4.34-10.43l19.72-50.81h3.07l23.44,56.63c1.76,4.28,3.16,7.33,4.2,9.16s2.17,3.21,3.4,4.15c.86.65,1.85,1.14,2.96,1.48s2.78.64,5.01.89v1.24ZM402.2,749.72l-11.32-27.91-10.67,27.91h21.98Z"/>
+            <path class="logo-nn" d="M494.23,709.63c-2.26,0-4.69.07-7.27.22-5.53.29-9.65.99-12.37,2.1-2.71,1.11-4.95,3.04-6.71,5.77-1.62,2.51-2.86,5.93-3.72,10.24l-1.24-.11.97-19.88h72.9l.97,19.88-1.24.11c-.97-4.99-2.49-8.77-4.55-11.34-2.06-2.57-5.07-4.41-9.03-5.52-3.34-.97-9-1.46-16.97-1.46v54.96c0,3.66.21,6.38.62,8.16.41,1.78,1.18,3.24,2.29,4.39,1.01,1.04,2.15,1.8,3.42,2.26,1.27.47,2.94.75,4.98.86v1.24h-34.43v-1.24c2.08-.11,3.76-.39,5.04-.86,1.27-.47,2.42-1.22,3.42-2.26,1.11-1.15,1.88-2.6,2.29-4.36.41-1.76.62-4.49.62-8.19v-54.96Z"/>
+            <path class="logo-nn" d="M582.01,717.71v46.88c0,3.7.21,6.43.62,8.19s1.18,3.21,2.29,4.36c1.01,1.04,2.15,1.8,3.42,2.26,1.27.47,2.94.75,4.98.86v1.24h-24.84v-1.24c2.05-.11,3.71-.39,4.98-.86,1.28-.47,2.42-1.22,3.42-2.26,1.11-1.15,1.88-2.61,2.29-4.39.41-1.78.62-4.5.62-8.16v-39.77c0-3.63-.21-6.33-.62-8.11-.41-1.78-1.18-3.24-2.29-4.39-.97-1.04-2.09-1.8-3.37-2.26-1.28-.47-2.96-.75-5.04-.86v-1.24h20.74l43.75,55.82v-38.9c0-3.7-.21-6.43-.62-8.19-.41-1.76-1.18-3.21-2.29-4.37-1.01-1.04-2.15-1.8-3.42-2.26-1.28-.47-2.94-.75-4.98-.86v-1.24h24.84v1.24c-3.59,0-6.39,1.04-8.41,3.12-1.11,1.15-1.88,2.61-2.29,4.39-.41,1.78-.62,4.48-.62,8.11v56.68h-2.42l-50.76-63.8Z"/>
+            <path class="logo-nn" d="M737.35,707.96l.92,17.78-1.24.05c-.47-3.02-1.24-5.51-2.32-7.49s-2.64-3.72-4.69-5.23c-1.69-1.26-3.68-2.15-5.98-2.67s-5.35-.78-9.16-.78h-12.34v32.33h3.23c3.27,0,5.73-.22,7.38-.65,1.65-.43,3-1.2,4.04-2.32,1-1.04,1.75-2.27,2.24-3.69.48-1.42.89-3.51,1.21-6.28l1.24.05-.22,28.88h-1.24c-.32-2.77-.8-4.99-1.43-6.68-.63-1.69-1.5-3.12-2.61-4.31-1.08-1.15-2.48-1.99-4.2-2.53-1.72-.54-3.92-.81-6.57-.81h-3.07v12.34c0,4.92.12,8.5.38,10.75.25,2.25.74,4.12,1.46,5.63,1.22,2.59,3.08,4.48,5.58,5.68,2.5,1.2,5.79,1.81,9.89,1.81,4.31,0,7.92-.55,10.83-1.64,2.91-1.1,5.28-2.79,7.11-5.09,1.29-1.54,2.34-3.3,3.15-5.28.81-1.97,1.55-4.58,2.24-7.81l1.24.05-.7,21.45h-64.28v-1.24c2.05-.11,3.71-.39,4.98-.86,1.28-.47,2.42-1.22,3.42-2.26,1.11-1.15,1.88-2.61,2.29-4.39.41-1.78.62-4.5.62-8.16v-39.71c0-3.66-.21-6.38-.62-8.16-.41-1.78-1.18-3.24-2.29-4.39-.97-1.04-2.09-1.8-3.37-2.26-1.28-.47-2.96-.75-5.04-.86v-1.24h57.92Z"/>
+            <path class="logo-nn" d="M804.87,709.63c-2.26,0-4.69.07-7.27.22-5.53.29-9.65.99-12.37,2.1-2.71,1.11-4.95,3.04-6.71,5.77-1.62,2.51-2.86,5.93-3.72,10.24l-1.24-.11.97-19.88h72.9l.97,19.88-1.24.11c-.97-4.99-2.49-8.77-4.55-11.34s-5.07-4.41-9.03-5.52c-3.34-.97-9-1.46-16.97-1.46v54.96c0,3.66.21,6.38.62,8.16s1.18,3.24,2.29,4.39c1.01,1.04,2.15,1.8,3.42,2.26,1.27.47,2.94.75,4.98.86v1.24h-34.43v-1.24c2.08-.11,3.76-.39,5.04-.86,1.28-.47,2.42-1.22,3.42-2.26,1.11-1.15,1.88-2.6,2.29-4.36.41-1.76.62-4.49.62-8.19v-54.96Z"/>
+          </g>
+          <path class="logo-body" d="M780.86,485.51c1.77-1.04,2.93-2.4,3.66-3.98,1.5-3.18,1.26-7.23.83-11.1-.27-2.51-.64-4.96-.67-7.06-.37-25.24-5.69-63.1-14.55-89.43-.01-.02-.02-.05-.02-.06-.92-2.72-1.88-5.32-2.87-7.77-1.31-3.22-4.65-10.5-6.19-13.61-1.37-2.78-3.86-6.87-6.07-10.54-.95-1.56-1.84-3.03-2.59-4.31-.64-1.1-1.67-2.39-2.47-3.71-1.52-2.5-3.23-5.27-4.97-8.04-41.63-61.02-111.27-101.4-190.4-102.67-6.03.07-12.4.31-19.28.61-2.18.1-4.22.21-6.14.33-7.58.51-13.39,1.3-19.09,2.54-6.71,1.44-13.28,3.5-22.42,6.41-4.87,1.56-9.97,2.44-15.11,3.41-8.93,1.7-17.98,3.64-26.17,9.74-.89.67-1.67,1.58-2.38,2.52-1.34,1.78-2.39,3.66-3.35,4.12-1.68.79-3.6.58-5.56.68-1.03.04-2.07.17-3.08.58-2.52,1-5.63,3.43-8.08,6.15-1.22,1.36-2.29,2.78-3.04,4.14-.35.61-1.2.67-1.6.1-.19-.27-.48-.41-.78-.41-.2,0-.4.06-.56.19l-16.59,12.5c-.35.26-.47.73-.3,1.13.88,1.91,2.13,4.16,3.53,6.52l.04.06c3.85,6.45,8.87,13.67,10.99,16.88,12.99,19.8,27.18,38.9,41.09,58.16l28.47,41.03v.14l.97,1.26,167.02,239.17s.04.05.1.14c1.29,1.72,15.29,19.57,35.04,7.34,1.87-1.35,3.71-2.72,5.54-4.13.05-.02.1-.07.15-.11.04-.02.07-.06.11-.09h0c38.39-29.61,67.37-70.82,81.68-118.4,1.32-5.31,2.5-10.32,3.49-14.81,1.5-6.79,1.55-14.49,3.88-21.28.12-.37.01-.77-.28-1.01-.71-.59-1.41-1.19-2.12-1.77-.51-.42-.42-1.21.14-1.53ZM754.7,352.35l-1.25-4.8h1.41l-.16,4.8Z"/>
+          <path class="logo-body" d="M694.06,644.31h0s-.07.07-.11.1c.04-.04.07-.06.11-.1Z"/>
+          <g>
+            <path style="fill:url(#nav-g1)" d="M385.51,343.03v5.14c12.7,2.04,22.01,6.43,27.98,13.17,2.17,2.45,4.07,5.43,5.69,8.93,4.75,10.26,7.14,25.04,7.14,44.29v118.42c0,5.69-.4,30.42-1.24,30.42s-3-2.41-6.59-7.22l-164.14-213.15h-54.37v3.83c4.48-.18,14.73.07,24.47,6.81,5.99,4.14,9.23,8.95,11.49,12.36,8.4,12.74,10.1,26.28,10.34,34.56v144.96c0,18.78-1.98,33.22-5.92,43.29-1.68,4.25-3.69,7.73-6.07,10.44-5.63,6.39-14.56,10.53-26.81,12.43v5.47h81.88v-6.17c-11.3-2.34-19.61-6.81-24.93-13.42-1.9-2.36-3.58-5.27-5.03-8.75-4.88-11.6-7.31-29.39-7.31-53.42v-138.81c0-5.12.4-7.66,1.24-7.66l4.54,5.51,164.33,224.4h9.93v-204.31c0-19.24,2.15-34.01,6.44-44.27,1.47-3.5,3.2-6.48,5.16-8.95,5.2-6.5,13.09-10.81,23.68-12.91v-5.38h-81.88Z"/>
+            <path style="fill:url(#nav-g2)" d="M659.39,343.03v5.14c12.7,2.04,22.01,6.43,27.98,13.17,2.17,2.45,4.07,5.43,5.69,8.93,4.75,10.26,7.14,25.04,7.14,44.29v118.42c0,5.69-.4,30.42-1.24,30.42s-3-2.41-6.59-7.22l-164.14-213.15h-54.37v3.83c4.48-.18,14.73.07,24.47,6.81,5.99,4.14,9.23,8.95,11.49,12.36,8.4,12.74,10.1,26.28,10.34,34.56v144.96c0,18.78-1.98,33.22-5.92,43.29-1.68,4.25-3.69,7.73-6.07,10.44-5.63,6.39-14.56,10.53-26.81,12.43v5.47h81.88v-6.17c-11.3-2.34-19.61-6.81-24.93-13.42-1.9-2.36-3.58-5.27-5.03-8.75-4.88-11.6-7.31-29.39-7.31-53.42v-138.81c0-5.12.4-7.66,1.24-7.66l4.54,5.51,164.33,224.4h9.93v-204.31c0-19.24,2.15-34.01,6.44-44.27,1.47-3.5,3.2-6.48,5.16-8.95,5.2-6.5,13.09-10.81,23.68-12.91v-5.38h-81.88Z"/>
+          </g>
+        </g>
+      </svg>
+    </div>
+    <span class="nav-wordmark">NeatNet</span>
+  </a>
+    <div class="foot-tag">
+      AI road cleanliness<br>intelligence system.<br>Built for communities<br>and our planet.
+    </div>
+    <!--<div class="foot-version">v3.1 · 2025</div>-->
+  </div>
+  <div class="foot-cell">
+    <div class="foot-section-label">Navigation</div>
+    <div class="foot-links">
+      <a href="#about" class="foot-link">About</a>
+      <a href="#guide" class="foot-link">How It Works</a>
+      <a href="#scan" class="foot-link">Scan a Road</a>
+    </div>
+  </div>
+  <div class="foot-cell">
+    <div class="foot-section-label">System</div>
+    <div class="foot-copy">
+      Model accuracy: 96.4%<br>
+      Processing time: ~2.1s avg<br>
+      Zero data retention policy<br><br>
+      © 2025 NeatNet. Promoting cleaner<br>
+      roads through open AI tools.
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ── Theme ── */
+const html = document.documentElement;
+const themeBtn = document.getElementById('theme-btn');
+let dark = true;
+html.setAttribute('data-theme', 'dark');
+
+themeBtn.addEventListener('click', () => {
+  dark = !dark;
+  html.setAttribute('data-theme', dark ? 'dark' : 'light');
+  themeBtn.textContent = dark ? '☽' : '☀';
+});
+
+/* ── Splash ── */
+function dismissSplash() {
+  const s = document.getElementById('splash');
+  s.classList.add('hide');
+  setTimeout(() => s.style.display = 'none', 950);
+}
+setTimeout(dismissSplash, 3400);
+
+/* ── File upload ── */
+const fileInput    = document.getElementById('file-input');
+const uploadState  = document.getElementById('upload-state');
+const previewArea  = document.getElementById('preview-area');
+const previewImg   = document.getElementById('preview-img');
+const loadingState = document.getElementById('loading-state');
+const resultArea   = document.getElementById('result-area');
+const uploadZone   = document.getElementById('upload-zone');
+
+fileInput.addEventListener('change', function () {
+  const file = this.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => { previewImg.src = e.target.result; show('preview'); };
+  reader.readAsDataURL(file);
+});
+
+const scanWidget = document.querySelector('.scan-widget');
+scanWidget.addEventListener('dragover', e => { e.preventDefault(); uploadZone && uploadZone.classList.add('dragover'); });
+scanWidget.addEventListener('dragleave', () => { uploadZone && uploadZone.classList.remove('dragover'); });
+scanWidget.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone && uploadZone.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) {
+    const dt = new DataTransfer(); dt.items.add(f);
+    fileInput.files = dt.files;
+    fileInput.dispatchEvent(new Event('change'));
+  }
+});
+
+function show(state) {
+  uploadState.style.display  = state === 'upload'  ? 'block' : 'none';
+  previewArea.style.display  = state === 'preview' ? 'block' : 'none';
+  loadingState.style.display = state === 'loading' ? 'block' : 'none';
+  resultArea.style.display   = state === 'result'  ? 'block' : 'none';
+}
+
+async function analyzeImage() {
+  const fi = document.getElementById('file-input');
+  if (!fi.files.length) { alert('Select an image first.'); return; }
+  show('loading');
+  const formData = new FormData();
+  formData.append('image', fi.files[0]);
+  try {
+    const response = await fetch('/predict', { method: 'POST', body: formData });
+    const result = await response.json();
+    showResult(result.score, result.tag, result.note, result.prob_clean, result.prob_moderate, result.prob_dirty);
+  } catch(err) {
+    console.error(err);
+    alert('Prediction failed. Please try again.');
+    show('upload');
+  }
+}
+
+function showResult(score, tag, note, probClean, probModerate, probDirty) {
+  const t = tag.toLowerCase();
+  const tagEl = document.getElementById('result-tag');
+  tagEl.className = `result-tag-pill rt-${t}`;
+  tagEl.textContent = tag;
+  const scoreEl = document.getElementById('result-score');
+  scoreEl.className = `result-score-big rs-${t}`;
+  scoreEl.textContent = parseFloat(score).toFixed(1);
+  setTimeout(() => {
+    document.getElementById('pct-clean').textContent    = probClean + '%';
+    document.getElementById('pct-moderate').textContent = probModerate + '%';
+    document.getElementById('pct-dirty').textContent    = probDirty + '%';
+    document.getElementById('bar-clean').style.width    = probClean + '%';
+    document.getElementById('bar-moderate').style.width = probModerate + '%';
+    document.getElementById('bar-dirty').style.width    = probDirty + '%';
+  }, 120);
+  show('result');
+}
+
+function resetScan() {
+  fileInput.value = '';
+  previewImg.src = '';
+  document.getElementById('analyze-btn').disabled = false;
+  show('upload');
+}
+
+/* ── Smooth scroll ── */
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const t = document.querySelector(a.getAttribute('href'));
+    if (t) t.scrollIntoView({ behavior: 'smooth' });
+  });
+});
+
+/* ── Scroll reveal ── */
+const revealEls = document.querySelectorAll('.r');
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(en => { if (en.isIntersecting) { en.target.classList.add('on'); obs.unobserve(en.target); } });
+}, { threshold: 0.1 });
+revealEls.forEach(el => obs.observe(el));
+
+/* ── Animate about bars ── */
+const aboutSection = document.getElementById('about');
+const barsObs = new IntersectionObserver(entries => {
+  if (entries[0].isIntersecting) {
+    setTimeout(() => {
+      document.getElementById('bar-about-clean').style.width = '38%';
+      document.getElementById('bar-about-mod').style.width   = '37%';
+      document.getElementById('bar-about-dirty').style.width = '25%';
+    }, 350);
+    barsObs.disconnect();
+  }
+}, { threshold: 0.3 });
+barsObs.observe(aboutSection);
+</script>
+</body>
+</html>
