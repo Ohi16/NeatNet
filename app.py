@@ -117,8 +117,6 @@ def predict():
         features = scaler.transform(features)           # (1, 2048)
 
         # ── 4. XGBoost predict ────────────────────────────
-        # XGBoost uses flat 2048 features directly
-        # NO reshape needed unlike CNN+BiLSTM
         probs = classifier.predict_proba(features)[0].tolist()  # (3,)
 
         # ── 5. Compute NEATNET score ───────────────────────
@@ -134,15 +132,15 @@ def predict():
 
         # ── 7. Return response ────────────────────────────
         return jsonify({
-    'score'    : round(neatnet_score, 2),
-    'tag'      : tag,
-    'note'     : note,
-    'prob_clean'    : round(probs[0] * 100, 1),
-    'prob_moderate' : round(probs[1] * 100, 1),
-    'prob_dirty'    : round(probs[2] * 100, 1)
-})
+            'score'    : round(neatnet_score, 2),
+            'tag'      : tag,
+            'note'     : note,
+            'prob_clean'    : round(probs[0] * 100, 1),
+            'prob_moderate' : round(probs[1] * 100, 1),
+            'prob_dirty'    : round(probs[2] * 100, 1)
+        })
 
-except Exception as e:
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
     finally:
