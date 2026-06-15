@@ -1,0 +1,8 @@
+flask
+xgboost
+scikit-learn
+numpy
+pillow
+joblib
+tensorflow-cpu
+gunicorn
